@@ -59,9 +59,6 @@
   { include: [ "<glm/ext/matrix_transform.inl>", private, "<glm/gtc/matrix_transform.hpp>", public ] },
   { include: [ "<glm/ext/projection.inl>", private, "<glm/gtc/matrix_transform.hpp>", public ] },
 
-  # EnTT aliases
-  { "include": ["@<entt/.*>", "private", "<entt/entt.hpp>", "public"] },
-
   # freetype aliases
   { "include": ["@<freetype/.*>", "private", "<ft2build.h>", "public"] }
 ]

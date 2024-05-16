@@ -6,6 +6,10 @@ inputs:
   compiler-version:
     description: 'Used compiler version'
     required: true
+  arch:
+    description: 'Target architecture'
+    required: false
+    default: 'x64'
   build-type:
     description: 'Used build type'
     required: true
@@ -19,7 +23,7 @@ inputs:
     default: 2.2.1
 outputs:
   conan-profile:
-    value: conan/${{ inputs.compiler }}-${{ inputs.compiler-version }}
+    value: conan/${{inputs.arch == 'aarch64' && 'aarch64-' || ''}}${{ inputs.compiler }}-${{ inputs.compiler-version }}
 runs:
   using: 'composite'
   steps:
