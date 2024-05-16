@@ -1,0 +1,69 @@
+add_library(vkrndr)
+
+target_sources(vkrndr
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/font_manager.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/imgui_render_layer.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/global_data.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/sdl_window.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_buffer.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_commands.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_context.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_descriptors.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_device.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_font.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_image.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_memory.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_pipeline.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_queue.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_renderer.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_scene.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_synchronization.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_swap_chain.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_utility.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_window.hpp
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/font_manager.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_render_layer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/global_data.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sdl_window.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_buffer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_commands.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_context.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_descriptors.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_device.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_font.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_image.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_memory.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_pipeline.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_queue.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_renderer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_scene.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_synchronization.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_swap_chain.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_utility.cpp
+)
+
+target_include_directories(vkrndr
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(vkrndr
+    PUBLIC
+		Freetype::Freetype
+        imgui::imgui
+        vulkan-headers::vulkan-headers
+        SDL2::SDL2
+        imgui_impl
+    PRIVATE
+        fmt::fmt
+        glm::glm
+        Vulkan::Loader
+        spdlog::spdlog
+        stb_impl
+        project-options
+)
+
