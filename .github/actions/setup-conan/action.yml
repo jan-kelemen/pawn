@@ -41,7 +41,7 @@ runs:
       run: |
           echo "CONAN_CACHE_LOCATION=$(conan config home)" >> $GITHUB_ENV
           echo "COMPILER_NAME=${{ inputs.compiler }}" >> $GITHUB_ENV
-          echo "COMPILER_VERSION=${{ inputs.compiler-version }}" >> $GITHUB_ENV
+          echo "COMPILER_VER=${{ inputs.compiler-version }}" >> $GITHUB_ENV
 
     - name: Set environment variables
       if: ${{ runner.os == 'Windows' }}
