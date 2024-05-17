@@ -71,13 +71,13 @@ runs:
       if: ${{ runner.os == 'Linux' }}
       shell: ${{ inputs.shell }}
       run: |
-        conan export recipes/recipes/pulseaudio/meson --profile=ci/conan/${{ inputs.profile }} --version 17.0
+        conan export recipes/recipes/pulseaudio/meson --version 17.0
 
     - name: Override public Conan recipes
       shell: ${{ inputs.shell }}
       run: |
-        conan export recipes/recipes/sdl/all --profile=ci/conan/${{ inputs.profile }} --version 2.30.1
-        conan export recipes/recipes/freetype/meson --profile=ci/conan/${{ inputs.profile }} --version 2.13.2
+        conan export recipes/recipes/sdl/all --version 2.30.1
+        conan export recipes/recipes/freetype/meson --version 2.13.2
 
     - name: Build all dependencies
       shell: ${{ inputs.shell }}
