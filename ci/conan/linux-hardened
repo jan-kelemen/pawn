@@ -1,6 +1,6 @@
 include(../../conan/{{ os.getenv("COMPILER_NAME")}}-{{ os.getenv("COMPILER_VER") }})
 include(../../conan/dependencies)
-include(../../conan/opt/linux-hardening)
+include(../../conan/opt/{{ os.getenv("COMPILER_NAME")-linux-hardening)
 
 [settings]
 build_type=Release
