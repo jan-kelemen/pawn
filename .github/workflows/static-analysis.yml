@@ -46,7 +46,7 @@ jobs:
 
       - name: Fetch dependencies
         run: |
-          COMPILER_NAME=clang COMPILER_VER=${{ env.CLANG_VER }} conan install . --build=missing --profile=ci/conan/static-analysis
+          COMPILER_NAME=clang COMPILER_VER=${{ env.CLANG_VER }} conan install . --profile=ci/conan/static-analysis
 
       - name: Configure CMake
         run: |
@@ -94,7 +94,7 @@ jobs:
 
       - name: Fetch dependencies
         run: |
-          COMPILER_NAME=clang COMPILER_VER=${{ env.CLANG_VER }} conan install . --build=missing --profile=ci/conan/static-analysis
+          COMPILER_NAME=clang COMPILER_VER=${{ env.CLANG_VER }} conan install . --profile=ci/conan/static-analysis
 
       - name: Configure CMake
         run: |
@@ -133,7 +133,7 @@ jobs:
 
       - name: Fetch dependencies
         run: |
-          COMPILER_NAME=gcc COMPILER_VER=${{ env.GCC_VER }} conan install . --build=missing --profile=ci/conan/static-analysis
+          COMPILER_NAME=gcc COMPILER_VER=${{ env.GCC_VER }} conan install . --profile=ci/conan/static-analysis
 
       - name: Configure CMake
         run: |
@@ -175,7 +175,7 @@ jobs:
 
       - name: Fetch dependencies
         run: |
-          COMPILER_NAME=gcc COMPILER_VER=${{ env.GCC_VER }} conan install . --build=missing --profile=ci/conan/static-analysis
+          COMPILER_NAME=gcc COMPILER_VER=${{ env.GCC_VER }} conan install . --profile=ci/conan/static-analysis
 
       - name: Configure CMake
         run: |
@@ -215,7 +215,7 @@ jobs:
 
       - name: Fetch dependencies
         run: |
-          conan install . --build=missing --profile=ci/conan/msvc-analyze
+          conan install . --profile=ci/conan/msvc-analyze
 
       - name: Configure CMake
         run: |

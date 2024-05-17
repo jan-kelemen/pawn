@@ -54,7 +54,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: ${{ env.CONAN_CACHE_LOCATION }}/p
-        key: ${{ github.job }}-${{ inputs.compiler }}-${{ inputs.compiler-version }}-${{ hashFiles('conanfile.py') }}
+        key: ${{ inputs.compiler }}-${{ inputs.compiler-version }}-${{ hashFiles('conanfile.py') }}
         
     - name: Detect default profile
       shell: ${{ inputs.shell }}
@@ -78,3 +78,27 @@ runs:
       shell: ${{ inputs.shell }}
       run: |
         conan create recipes/recipes/pulseaudio/meson --profile=conan/${{ inputs.compiler }}-${{ inputs.compiler-version }} --profile=conan/dependencies --version 17.0 --build=missing -s build_type=${{ inputs.build-type }}
+
+    - name: Build all GCC dependencies
+      if: ${{ inputs.compiler == 'gcc' }}
+      shell: ${{ inputs.shell }}
+      run: |
+          COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan install . --build=missing --profile=ci/conan/linux-hardened
+          COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan install . --build=missing --profile=ci/conan/static-analysis
+          conan install . --build=missing --profile=ci/conan/gcc-tsan
+
+    - name: Build all Clang dependencies
+      if: ${{ inputs.compiler == 'gcc' }}
+      shell: ${{ inputs.shell }}
+      run: |
+          COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan install . --build=missing --profile=ci/conan/linux-hardened
+          COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan install . --build=missing --profile=ci/conan/static-analysis
+          conan install . --build=missing --profile=ci/conan/clang-asan-leak-undefined
+
+    - name: Build all MSVC dependencies
+      if: ${{ inputs.compiler == 'msvc' }}
+      shell: ${{ inputs.shell }}
+      run: |
+          conan install . --build=missing --profile=ci/conan/msvc-hardened
+          conan install . --build=missing --profile=ci/conan/msvc-analyze
+          conan install . --build=missing --profile=ci/conan/msvc-asan

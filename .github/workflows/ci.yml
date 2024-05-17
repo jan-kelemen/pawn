@@ -50,7 +50,7 @@ jobs:
 
       - name: Fetch dependencies
         run: |
-          COMPILER_NAME=${{ matrix.compiler }} COMPILER_VER=${{ matrix.compiler == 'gcc' && env.GCC_VER || env.CLANG_VER }} conan install . --build=missing --profile=ci/conan/linux-hardened
+          COMPILER_NAME=${{ matrix.compiler }} COMPILER_VER=${{ matrix.compiler == 'gcc' && env.GCC_VER || env.CLANG_VER }} conan install . --profile=ci/conan/linux-hardened
 
       - name: Configure CMake
         run: |
@@ -91,7 +91,7 @@ jobs:
 
       - name: Fetch dependencies
         run: |
-          conan install . --profile=${{ steps.setup-conan.outputs.conan-profile }} --build=missing --profile=ci/conan/msvc-hardened
+          conan install . --profile=ci/conan/msvc-hardened
 
       - name: Configure CMake
         run: |
