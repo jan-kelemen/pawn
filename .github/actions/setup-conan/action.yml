@@ -10,8 +10,8 @@ inputs:
     description: 'Target architecture'
     required: false
     default: 'x64'
-  build-type:
-    description: 'Used build type'
+  profile:
+    description: 'Used profile'
     required: true
   shell:
     description: 'Used shell for executing commands'
@@ -21,9 +21,7 @@ inputs:
     description: 'Version to install'
     required: false
     default: 2.2.1
-outputs:
-  conan-profile:
-    value: conan/${{inputs.arch == 'aarch64' && 'aarch64-' || ''}}${{ inputs.compiler }}-${{ inputs.compiler-version }}
+
 runs:
   using: 'composite'
   steps:
@@ -37,13 +35,15 @@ runs:
       run: |
         conan config install conan/global.conf
 
-    - name: Get Conan cache location
+    - name: Set environment variables
       if: ${{ runner.os == 'Linux' }}
       shell: ${{ inputs.shell }}
       run: |
           echo "CONAN_CACHE_LOCATION=$(conan config home)" >> $GITHUB_ENV
+          echo "COMPILER_NAME=${{ inputs.compiler }}" >> $GITHUB_ENV
+          echo "COMPILER_VER=${{ inputs.compiler-version }}" >> $GITHUB_ENV
 
-    - name: Get Conan cache location
+    - name: Set environment variables
       if: ${{ runner.os == 'Windows' }}
       shell: ${{ inputs.shell }}
       run: |
@@ -54,7 +54,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: ${{ env.CONAN_CACHE_LOCATION }}/p
-        key: ${{ github.job }}-${{ inputs.compiler }}-${{ inputs.compiler-version }}-${{ hashFiles('conanfile.py') }}
+        key: ${{ inputs.compiler }}-${{ inputs.profile }}-${{ hashFiles('conanfile.py') }}
         
     - name: Detect default profile
       shell: ${{ inputs.shell }}
@@ -67,14 +67,19 @@ runs:
         repository: jan-kelemen/conan-recipes
         path: recipes
 
-    - name: Override public Conan recipes
-      shell: ${{ inputs.shell }}
-      run: |
-        conan create recipes/recipes/sdl/all --profile=conan/${{ inputs.compiler }}-${{ inputs.compiler-version }} --profile=conan/dependencies --version 2.30.1 --build=missing -s build_type=${{ inputs.build-type }}
-        conan create recipes/recipes/freetype/meson --profile=conan/${{ inputs.compiler }}-${{ inputs.compiler-version }} --profile=conan/dependencies --version 2.13.2 --build=missing -s build_type=${{ inputs.build-type }}
-
     - name: Override Linux specific public Conan recipes
       if: ${{ runner.os == 'Linux' }}
       shell: ${{ inputs.shell }}
       run: |
-        conan create recipes/recipes/pulseaudio/meson --profile=conan/${{ inputs.compiler }}-${{ inputs.compiler-version }} --profile=conan/dependencies --version 17.0 --build=missing -s build_type=${{ inputs.build-type }}
+        conan export recipes/recipes/pulseaudio/meson --version 17.0
+
+    - name: Override public Conan recipes
+      shell: ${{ inputs.shell }}
+      run: |
+        conan export recipes/recipes/sdl/all --version 2.30.1
+        conan export recipes/recipes/freetype/meson --version 2.13.2
+
+    - name: Build all dependencies
+      shell: ${{ inputs.shell }}
+      run: |
+        conan install . --build=missing --profile=ci/conan/${{ inputs.profile }}

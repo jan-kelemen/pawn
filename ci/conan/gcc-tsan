@@ -1,0 +1,7 @@
+include(../../conan/gcc-{{ os.getenv("GCC_VER") }})
+include(../../conan/dependencies)
+include(../../conan/opt/linux-thread-sanitizer)
+
+[settings]
+build_type=Release
+

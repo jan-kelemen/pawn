@@ -39,11 +39,7 @@ jobs:
         with:
           compiler: clang
           compiler-version: ${{ env.CLANG_VER }}
-          build-type: Release
-
-      - name: Fetch dependencies
-        run: |
-          conan install . --profile=${{ steps.setup-conan.outputs.conan-profile }} --profile=conan/dependencies --profile=conan/opt/linux-address-sanitizer --profile=conan/opt/linux-leak-sanitizer --profile=conan/opt/linux-undefined-sanitizer --build=missing --settings build_type=Release
+          profile: clang-asan-leak-undefined
 
       - name: Configure CMake
         run: |
@@ -82,11 +78,7 @@ jobs:
         with:
           compiler: gcc
           compiler-version: ${{ env.GCC_VER }}
-          build-type: Release
-
-      - name: Fetch dependencies
-        run: |
-          conan install . --profile=${{ steps.setup-conan.outputs.conan-profile }} --profile=conan/dependencies --profile=conan/opt/linux-thread-sanitizer --build=missing --settings build_type=Release
+          profile: gcc-tsan
 
       - name: Configure CMake
         run: |
@@ -123,11 +115,7 @@ jobs:
         with:
           compiler: msvc
           compiler-version: 2022
-          build-type: Release
-
-      - name: Fetch dependencies
-        run: |
-          conan install . --profile=${{ steps.setup-conan.outputs.conan-profile }} --profile=conan/dependencies --profile=conan/opt/msvc-address-sanitizer --build=missing --settings build_type=Release
+          profile: msvc-asan
 
       - name: Configure CMake
         run: |

@@ -1,0 +1,6 @@
+include(../../conan/msvc-2022)
+include(../../conan/dependencies)
+
+[settings]
+build_type=Debug
+

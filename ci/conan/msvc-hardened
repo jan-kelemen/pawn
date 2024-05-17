@@ -1,0 +1,7 @@
+include(../../conan/msvc-2022)
+include(../../conan/dependencies)
+include(../../conan/opt/msvc-hardening)
+
+[settings]
+build_type=Release
+
