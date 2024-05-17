@@ -88,7 +88,7 @@ runs:
           conan install . --build=missing --profile=ci/conan/gcc-tsan
 
     - name: Build all Clang dependencies
-      if: ${{ inputs.compiler == 'gcc' }}
+      if: ${{ inputs.compiler == 'clang' }}
       shell: ${{ inputs.shell }}
       run: |
           COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan install . --build=missing --profile=ci/conan/linux-hardened
