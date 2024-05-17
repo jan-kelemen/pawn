@@ -46,11 +46,7 @@ jobs:
         with:
           compiler: ${{ matrix.compiler }}
           compiler-version: ${{ matrix.compiler == 'gcc' && env.GCC_VER || env.CLANG_VER }}
-          build-type: Release
-
-      - name: Fetch dependencies
-        run: |
-          COMPILER_NAME=${{ matrix.compiler }} COMPILER_VER=${{ matrix.compiler == 'gcc' && env.GCC_VER || env.CLANG_VER }} conan install . --profile=ci/conan/linux-hardened
+          profile: linux-hardened
 
       - name: Configure CMake
         run: |
@@ -87,11 +83,7 @@ jobs:
         with:
           compiler: msvc
           compiler-version: 2022
-          build-type: Release
-
-      - name: Fetch dependencies
-        run: |
-          conan install . --profile=ci/conan/msvc-hardened
+          profile: msvc-hardened
 
       - name: Configure CMake
         run: |

@@ -42,11 +42,7 @@ jobs:
         with:
           compiler: clang
           compiler-version: ${{ env.CLANG_VER }}
-          build-type: Debug
-
-      - name: Fetch dependencies
-        run: |
-          COMPILER_NAME=clang COMPILER_VER=${{ env.CLANG_VER }} conan install . --profile=ci/conan/static-analysis
+          profile: static-analysis
 
       - name: Configure CMake
         run: |
@@ -90,11 +86,7 @@ jobs:
         with:
           compiler: clang
           compiler-version: ${{ env.CLANG_VER }}
-          build-type: Debug
-
-      - name: Fetch dependencies
-        run: |
-          COMPILER_NAME=clang COMPILER_VER=${{ env.CLANG_VER }} conan install . --profile=ci/conan/static-analysis
+          profile: static-analysis
 
       - name: Configure CMake
         run: |
@@ -129,11 +121,7 @@ jobs:
         with:
           compiler: gcc
           compiler-version: ${{ env.GCC_VER }}
-          build-type: Debug             
-
-      - name: Fetch dependencies
-        run: |
-          COMPILER_NAME=gcc COMPILER_VER=${{ env.GCC_VER }} conan install . --profile=ci/conan/static-analysis
+          profile: static-analysis             
 
       - name: Configure CMake
         run: |
@@ -171,11 +159,7 @@ jobs:
         with:
           compiler: gcc
           compiler-version: ${{ env.GCC_VER }}
-          build-type: Debug             
-
-      - name: Fetch dependencies
-        run: |
-          COMPILER_NAME=gcc COMPILER_VER=${{ env.GCC_VER }} conan install . --profile=ci/conan/static-analysis
+          profile: static-analysis             
 
       - name: Configure CMake
         run: |
@@ -211,11 +195,7 @@ jobs:
         with:
           compiler: msvc
           compiler-version: 2022
-          build-type: Debug
-
-      - name: Fetch dependencies
-        run: |
-          conan install . --profile=ci/conan/msvc-analyze
+          profile: msvc-analyze
 
       - name: Configure CMake
         run: |

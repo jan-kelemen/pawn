@@ -10,8 +10,8 @@ inputs:
     description: 'Target architecture'
     required: false
     default: 'x64'
-  build-type:
-    description: 'Used build type'
+  profile:
+    description: 'Used profile'
     required: true
   shell:
     description: 'Used shell for executing commands'
@@ -21,9 +21,7 @@ inputs:
     description: 'Version to install'
     required: false
     default: 2.2.1
-outputs:
-  conan-profile:
-    value: conan/${{inputs.arch == 'aarch64' && 'aarch64-' || ''}}${{ inputs.compiler }}-${{ inputs.compiler-version }}
+
 runs:
   using: 'composite'
   steps:
@@ -54,7 +52,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: ${{ env.CONAN_CACHE_LOCATION }}/p
-        key: ${{ inputs.compiler }}-${{ inputs.compiler-version }}-${{ hashFiles('conanfile.py') }}
+        key: ${{ inputs.compiler }}-${{ inputs.profile }}-${{ hashFiles('conanfile.py') }}
         
     - name: Detect default profile
       shell: ${{ inputs.shell }}
@@ -70,35 +68,29 @@ runs:
     - name: Override public Conan recipes
       shell: ${{ inputs.shell }}
       run: |
-        conan create recipes/recipes/sdl/all --profile=conan/${{ inputs.compiler }}-${{ inputs.compiler-version }} --profile=conan/dependencies --version 2.30.1 --build=missing -s build_type=${{ inputs.build-type }}
-        conan create recipes/recipes/freetype/meson --profile=conan/${{ inputs.compiler }}-${{ inputs.compiler-version }} --profile=conan/dependencies --version 2.13.2 --build=missing -s build_type=${{ inputs.build-type }}
+        COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan create recipes/recipes/sdl/all --profile=ci/conan/${{ inputs.profile }} --version 2.30.1 --build=missing
+        COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan create recipes/recipes/freetype/meson --profile=ci/conan/${{ inputs.profile }} --version 2.13.2 --build=missing
 
     - name: Override Linux specific public Conan recipes
       if: ${{ runner.os == 'Linux' }}
       shell: ${{ inputs.shell }}
       run: |
-        conan create recipes/recipes/pulseaudio/meson --profile=conan/${{ inputs.compiler }}-${{ inputs.compiler-version }} --profile=conan/dependencies --version 17.0 --build=missing -s build_type=${{ inputs.build-type }}
+        COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan create recipes/recipes/pulseaudio/meson --profile=ci/conan/${{ inputs.profile }} --version 17.0 --build=missing
 
     - name: Build all GCC dependencies
       if: ${{ inputs.compiler == 'gcc' }}
       shell: ${{ inputs.shell }}
       run: |
-          COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan install . --build=missing --profile=ci/conan/linux-hardened
-          COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan install . --build=missing --profile=ci/conan/static-analysis
-          conan install . --build=missing --profile=ci/conan/gcc-tsan
+        COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan install . --build=missing --profile=ci/conan/${{ inputs.profile }}
 
     - name: Build all Clang dependencies
       if: ${{ inputs.compiler == 'clang' }}
       shell: ${{ inputs.shell }}
       run: |
-          COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan install . --build=missing --profile=ci/conan/linux-hardened
-          COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan install . --build=missing --profile=ci/conan/static-analysis
-          conan install . --build=missing --profile=ci/conan/clang-asan-leak-undefined
+        COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan install . --build=missing --profile=ci/conan/${{ inputs.profile }}
 
     - name: Build all MSVC dependencies
       if: ${{ inputs.compiler == 'msvc' }}
       shell: ${{ inputs.shell }}
       run: |
-          conan install . --build=missing --profile=ci/conan/msvc-hardened
-          conan install . --build=missing --profile=ci/conan/msvc-analyze
-          conan install . --build=missing --profile=ci/conan/msvc-asan
+        conan install . --build=missing --profile=ci/conan/${{ inputs.profile }}
