@@ -35,13 +35,15 @@ runs:
       run: |
         conan config install conan/global.conf
 
-    - name: Get Conan cache location
+    - name: Set environment variables
       if: ${{ runner.os == 'Linux' }}
       shell: ${{ inputs.shell }}
       run: |
           echo "CONAN_CACHE_LOCATION=$(conan config home)" >> $GITHUB_ENV
+          echo "COMPILER_NAME=${{ inputs.compiler }}" >> $GITHUB_ENV
+          echo "COMPILER_VERSION=${{ inputs.compiler-version }}" >> $GITHUB_ENV
 
-    - name: Get Conan cache location
+    - name: Set environment variables
       if: ${{ runner.os == 'Windows' }}
       shell: ${{ inputs.shell }}
       run: |
@@ -68,29 +70,16 @@ runs:
     - name: Override public Conan recipes
       shell: ${{ inputs.shell }}
       run: |
-        COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan create recipes/recipes/sdl/all --profile=ci/conan/${{ inputs.profile }} --version 2.30.1 --build=missing
-        COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan create recipes/recipes/freetype/meson --profile=ci/conan/${{ inputs.profile }} --version 2.13.2 --build=missing
+        conan create recipes/recipes/sdl/all --profile=ci/conan/${{ inputs.profile }} --version 2.30.1 --build=missing
+        conan create recipes/recipes/freetype/meson --profile=ci/conan/${{ inputs.profile }} --version 2.13.2 --build=missing
 
     - name: Override Linux specific public Conan recipes
       if: ${{ runner.os == 'Linux' }}
       shell: ${{ inputs.shell }}
       run: |
-        COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan create recipes/recipes/pulseaudio/meson --profile=ci/conan/${{ inputs.profile }} --version 17.0 --build=missing
+        conan create recipes/recipes/pulseaudio/meson --profile=ci/conan/${{ inputs.profile }} --version 17.0 --build=missing
 
-    - name: Build all GCC dependencies
-      if: ${{ inputs.compiler == 'gcc' }}
-      shell: ${{ inputs.shell }}
-      run: |
-        COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan install . --build=missing --profile=ci/conan/${{ inputs.profile }}
-
-    - name: Build all Clang dependencies
-      if: ${{ inputs.compiler == 'clang' }}
-      shell: ${{ inputs.shell }}
-      run: |
-        COMPILER_NAME=${{ inputs.compiler }} COMPILER_VER=${{ inputs.compiler-version }} conan install . --build=missing --profile=ci/conan/${{ inputs.profile }}
-
-    - name: Build all MSVC dependencies
-      if: ${{ inputs.compiler == 'msvc' }}
+    - name: Build all dependencies
       shell: ${{ inputs.shell }}
       run: |
         conan install . --build=missing --profile=ci/conan/${{ inputs.profile }}
