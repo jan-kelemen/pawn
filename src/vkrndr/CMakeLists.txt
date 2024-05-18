@@ -4,7 +4,6 @@ target_sources(vkrndr
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include/font_manager.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/include/imgui_render_layer.hpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/global_data.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/include/sdl_window.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_buffer.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_commands.hpp
@@ -25,6 +24,7 @@ target_sources(vkrndr
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/font_manager.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_render_layer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/global_data.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/global_data.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sdl_window.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_buffer.cpp

@@ -92,6 +92,11 @@ VkExtent2D vkrndr::sdl_window::swap_extent(
     return actual_extent;
 }
 
+bool vkrndr::sdl_window::is_minimized() const
+{
+    return (SDL_GetWindowFlags(window_) & SDL_WINDOW_MINIMIZED) != 0;
+}
+
 void vkrndr::sdl_window::init_imgui() { ImGui_ImplSDL2_InitForVulkan(window_); }
 
 void vkrndr::sdl_window::shutdown_imgui() { ImGui_ImplSDL2_Shutdown(); }

@@ -11,6 +11,11 @@
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_vulkan.h>
 
+#include <spdlog/spdlog.h>
+
+#include <cassert>
+#include <utility>
+
 namespace
 {
     [[nodiscard]] VkDescriptorPool create_descriptor_pool(
@@ -105,6 +110,8 @@ vkrndr::imgui_render_layer::~imgui_render_layer()
 
 void vkrndr::imgui_render_layer::begin_frame()
 {
+    assert(std::exchange(frame_rendered_, false));
+
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
@@ -112,8 +119,21 @@ void vkrndr::imgui_render_layer::begin_frame()
 
 void vkrndr::imgui_render_layer::draw(VkCommandBuffer command_buffer)
 {
-    ImGui::Render();
+    render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command_buffer);
 }
 
-void vkrndr::imgui_render_layer::end_frame() { }
+void vkrndr::imgui_render_layer::end_frame()
+{
+    if (!std::exchange(frame_rendered_, true))
+    {
+        spdlog::info("Ending ImGui frame without matching draw call");
+        render();
+    }
+}
+
+void vkrndr::imgui_render_layer::render()
+{
+    ImGui::Render();
+    frame_rendered_ = true;
+}

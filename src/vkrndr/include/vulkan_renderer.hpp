@@ -58,14 +58,14 @@ namespace vkrndr
         [[nodiscard]] vulkan_font
         load_font(std::filesystem::path const& font_path, uint32_t font_size);
 
-        void recreate();
-
     public: // Operators
         vulkan_renderer& operator=(vulkan_renderer const&) = delete;
 
         vulkan_renderer& operator=(vulkan_renderer&&) noexcept = delete;
 
     private: // Helpers
+        void recreate();
+
         void record_command_buffer(vulkan_scene* scene,
             VkCommandBuffer& command_buffer);
 

@@ -1,8 +1,8 @@
-#include <global_data.hpp>
 #include <sdl_window.hpp>
 #include <vulkan_context.hpp>
 #include <vulkan_device.hpp>
 #include <vulkan_renderer.hpp>
+#include <vulkan_scene.hpp>
 #include <vulkan_swap_chain.hpp>
 
 #include <imgui_impl_sdl2.h>
@@ -43,6 +43,23 @@ namespace
             return false;
         }
     }
+
+    // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
+    class [[nodiscard]] empty_scene : public vkrndr::vulkan_scene
+    {
+    public: // Destruction
+        ~empty_scene() override = default;
+
+    public: // Interface
+        VkClearValue clear_color() override { return {{{1.f, .5f, .3f, 1.f}}}; }
+
+        void draw([[maybe_unused]] VkCommandBuffer command_buffer,
+            [[maybe_unused]] VkExtent2D extent) override
+        {
+        }
+
+        void draw_imgui() override { }
+    };
 } // namespace
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
@@ -55,6 +72,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
         true,
         512,
         512};
+
+    empty_scene scene;
 
     auto context{vkrndr::create_context(&window, enable_validation_layers)};
     auto device{vkrndr::create_device(context)};
@@ -83,21 +102,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
                 }
             }
 
-            if (vkrndr::swap_chain_refresh.load())
-            {
-                if ((SDL_GetWindowFlags(window.native_handle()) &
-                        SDL_WINDOW_MINIMIZED) != 0)
-                {
-                    SDL_WaitEvent(nullptr);
-                }
-                else
-                {
-                    vkDeviceWaitIdle(device.logical);
-                    swap_chain.recreate();
-                    renderer.recreate();
-                    vkrndr::swap_chain_refresh.store(false);
-                }
-            }
+            renderer.begin_frame();
+
+            renderer.draw(&scene);
 
             renderer.end_frame();
         }

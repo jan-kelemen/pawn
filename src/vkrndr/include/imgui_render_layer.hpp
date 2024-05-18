@@ -40,11 +40,16 @@ namespace vkrndr
 
         imgui_render_layer& operator=(imgui_render_layer&&) noexcept = delete;
 
+    private:
+        void render();
+
     private: // Data
         vulkan_window* window_;
         vulkan_device* device_;
 
         VkDescriptorPool descriptor_pool_;
+
+        bool frame_rendered_{true};
     };
 } // namespace vkrndr
 

@@ -1,6 +1,7 @@
 #include <vulkan_renderer.hpp>
 
 #include <font_manager.hpp>
+#include <global_data.hpp>
 #include <imgui_render_layer.hpp>
 #include <vulkan_buffer.hpp>
 #include <vulkan_commands.hpp>
@@ -12,6 +13,7 @@
 #include <vulkan_scene.hpp>
 #include <vulkan_swap_chain.hpp>
 #include <vulkan_utility.hpp>
+#include <vulkan_window.hpp>
 
 #include <stb_image.h>
 
@@ -130,6 +132,20 @@ void vkrndr::vulkan_renderer::end_frame()
 
 void vkrndr::vulkan_renderer::draw(vulkan_scene* scene)
 {
+    if (swap_chain_refresh.load())
+    {
+        if (window_->is_minimized())
+        {
+            return;
+        }
+
+        vkDeviceWaitIdle(device_->logical);
+        swap_chain_->recreate();
+        recreate();
+        swap_chain_refresh.store(false);
+        return;
+    }
+
     uint32_t image_index{};
     if (!swap_chain_->acquire_next_image(current_frame_, image_index))
     {

@@ -59,6 +59,8 @@ namespace vkrndr
         [[nodiscard]] VkExtent2D swap_extent(
             VkSurfaceCapabilitiesKHR const& capabilities) const override;
 
+        [[nodiscard]] bool is_minimized() const override;
+
         void init_imgui() override;
 
         void shutdown_imgui() override;
