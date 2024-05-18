@@ -57,13 +57,15 @@ target_link_libraries(vkrndr
         imgui::imgui
         vulkan-headers::vulkan-headers
         SDL2::SDL2
+    PRIVATE
+        stb_impl
         imgui_impl
     PRIVATE
         fmt::fmt
         glm::glm
         Vulkan::Loader
         spdlog::spdlog
-        stb_impl
+    PRIVATE
         project-options
 )
 
