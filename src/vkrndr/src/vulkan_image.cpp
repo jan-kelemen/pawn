@@ -24,6 +24,7 @@ vkrndr::vulkan_image vkrndr::create_image(vulkan_device const* const device,
     VkMemoryPropertyFlags const properties)
 {
     vulkan_image rv;
+    rv.format = format;
 
     VkImageCreateInfo image_info{};
     image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;

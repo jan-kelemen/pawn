@@ -48,6 +48,8 @@ namespace vkrndr
 
         [[nodiscard]] uint32_t image_count() const;
 
+        [[nodiscard]] VkExtent2D extent() const;
+
         void set_imgui_layer(bool state);
 
         void begin_frame();
@@ -70,7 +72,9 @@ namespace vkrndr
     private: // Helpers
         void recreate();
 
-        void record_command_buffer(vulkan_scene* scene,
+        void record_command_buffer(
+            VkCommandBufferInheritanceInfo inheritance_info,
+            vulkan_scene* scene,
             VkCommandBuffer& command_buffer);
 
         [[nodiscard]] bool is_multisampled() const;

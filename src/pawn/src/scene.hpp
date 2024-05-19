@@ -2,6 +2,7 @@
 #define PAWN_SCENE_INLCUDED
 
 #include <vulkan_buffer.hpp>
+#include <vulkan_image.hpp>
 #include <vulkan_scene.hpp>
 
 #include <vulkan/vulkan_core.h>
@@ -44,7 +45,13 @@ namespace pawn
         void update();
 
     public: // vulkan_scene overrides
-        VkClearValue clear_color() override;
+        [[nodiscard]] VkClearValue clear_color() override;
+
+        [[nodiscard]] VkClearValue clear_depth() override;
+
+        [[nodiscard]] vkrndr::vulkan_image* depth_image() override;
+
+        void resize(VkExtent2D extent) override;
 
         void draw(VkCommandBuffer command_buffer, VkExtent2D extent) override;
 
@@ -67,6 +74,7 @@ namespace pawn
         vkrndr::vulkan_renderer* vulkan_renderer_{};
 
         vkrndr::vulkan_buffer vert_index_buffer_;
+        vkrndr::vulkan_image depth_buffer_;
 
         VkDescriptorSetLayout descriptor_set_layout_{VK_NULL_HANDLE};
         std::unique_ptr<vkrndr::vulkan_pipeline> pipeline_;

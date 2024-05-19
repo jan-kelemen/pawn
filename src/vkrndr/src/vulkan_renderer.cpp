@@ -19,6 +19,7 @@
 
 #include <array>
 #include <cstring>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <utility>
@@ -108,6 +109,11 @@ uint32_t vkrndr::vulkan_renderer::image_count() const
     return vulkan_swap_chain::max_frames_in_flight;
 }
 
+VkExtent2D vkrndr::vulkan_renderer::extent() const
+{
+    return swap_chain_->extent();
+}
+
 void vkrndr::vulkan_renderer::set_imgui_layer(bool state)
 {
     if (imgui_layer_)
@@ -152,6 +158,7 @@ void vkrndr::vulkan_renderer::draw(vulkan_scene* scene)
         vkDeviceWaitIdle(device_->logical);
         swap_chain_->recreate();
         recreate();
+        scene->resize(extent());
         swap_chain_refresh.store(false);
         return;
     }
@@ -169,6 +176,18 @@ void vkrndr::vulkan_renderer::draw(vulkan_scene* scene)
     VkCommandBufferBeginInfo begin_info{};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     check_result(vkBeginCommandBuffer(command_buffer, &begin_info));
+
+    VkFormat const format{image_format()};
+    VkCommandBufferInheritanceRenderingInfo rendering_inheritance_info{};
+    rendering_inheritance_info.sType =
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_RENDERING_INFO;
+    rendering_inheritance_info.colorAttachmentCount = 1;
+    rendering_inheritance_info.pColorAttachmentFormats = &format;
+    rendering_inheritance_info.rasterizationSamples = device_->max_msaa_samples;
+
+    VkCommandBufferInheritanceInfo inheritance_info{};
+    inheritance_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+    inheritance_info.pNext = &rendering_inheritance_info;
 
     transition_image(swap_chain_->image(image_index),
         command_buffer,
@@ -196,17 +215,44 @@ void vkrndr::vulkan_renderer::draw(vulkan_scene* scene)
         color_attachment_info.imageView = swap_chain_->image_view(image_index);
     }
 
+    std::optional<VkRenderingAttachmentInfo> depth_attachment_info;
+    if (auto* const depth_image{scene->depth_image()})
+    {
+        VkRenderingAttachmentInfo depth_info{};
+        depth_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        depth_info.pNext = nullptr;
+        depth_info.imageView = depth_image->view;
+        depth_info.imageLayout =
+            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depth_info.resolveMode = VK_RESOLVE_MODE_NONE;
+        depth_info.resolveImageView = VK_NULL_HANDLE;
+        depth_info.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depth_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depth_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        depth_info.clearValue = scene->clear_depth();
+
+        depth_attachment_info = depth_info;
+
+        rendering_inheritance_info.depthAttachmentFormat = depth_image->format;
+    }
+
     VkRenderingInfo render_info{};
     render_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
-    render_info.renderArea = {{0, 0}, swap_chain_->extent()};
+    render_info.renderArea = {{0, 0}, extent()};
     render_info.flags = VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT;
     render_info.layerCount = 1;
     render_info.colorAttachmentCount = 1;
     render_info.pColorAttachments = &color_attachment_info;
+    if (depth_attachment_info)
+    {
+        render_info.pDepthAttachment = &depth_attachment_info.value();
+    }
 
     vkCmdBeginRendering(command_buffer, &render_info);
 
-    record_command_buffer(scene, secondary_buffers_[current_frame_]);
+    record_command_buffer(inheritance_info,
+        scene,
+        secondary_buffers_[current_frame_]);
     vkCmdExecuteCommands(command_buffer,
         1,
         &secondary_buffers_[current_frame_]);
@@ -259,10 +305,10 @@ vkrndr::vulkan_image vkrndr::vulkan_renderer::load_texture(
     unmap_memory(device_, &staging_map);
     stbi_image_free(pixels);
 
-    VkExtent2D const extent{static_cast<uint32_t>(width),
+    VkExtent2D const image_extent{static_cast<uint32_t>(width),
         static_cast<uint32_t>(height)};
     vulkan_image texture{create_image_and_view(device_,
-        extent,
+        image_extent,
         1,
         VK_SAMPLE_COUNT_1_BIT,
         VK_FORMAT_R8G8B8A8_SRGB,
@@ -287,7 +333,7 @@ vkrndr::vulkan_image vkrndr::vulkan_renderer::load_texture(
     copy_buffer_to_image(present_queue_buffer,
         staging_buffer.buffer,
         texture.image,
-        extent);
+        image_extent);
     transition_image(texture.image,
         present_queue_buffer,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -326,10 +372,10 @@ vkrndr::vulkan_font vkrndr::vulkan_renderer::load_font(
         static_cast<size_t>(image_size));
     unmap_memory(device_, &staging_map);
 
-    VkExtent2D const extent{font_bitmap.bitmap_width,
+    VkExtent2D const bitmap_extent{font_bitmap.bitmap_width,
         font_bitmap.bitmap_height};
     vulkan_image const texture{create_image_and_view(device_,
-        extent,
+        bitmap_extent,
         1,
         VK_SAMPLE_COUNT_1_BIT,
         VK_FORMAT_R8_UNORM,
@@ -354,7 +400,7 @@ vkrndr::vulkan_font vkrndr::vulkan_renderer::load_font(
     copy_buffer_to_image(present_queue_buffer,
         staging_buffer.buffer,
         texture.image,
-        extent);
+        bitmap_extent);
     transition_image(texture.image,
         present_queue_buffer,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -373,22 +419,12 @@ vkrndr::vulkan_font vkrndr::vulkan_renderer::load_font(
         texture};
 }
 
-void vkrndr::vulkan_renderer::record_command_buffer(vulkan_scene* scene,
+void vkrndr::vulkan_renderer::record_command_buffer(
+    VkCommandBufferInheritanceInfo const inheritance_info,
+    vulkan_scene* scene,
     VkCommandBuffer& command_buffer)
 {
     vkResetCommandBuffer(command_buffer, 0);
-
-    VkFormat const format{swap_chain_->image_format()};
-    VkCommandBufferInheritanceRenderingInfo rendering_inheritance_info{};
-    rendering_inheritance_info.sType =
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_RENDERING_INFO;
-    rendering_inheritance_info.colorAttachmentCount = 1;
-    rendering_inheritance_info.pColorAttachmentFormats = &format;
-    rendering_inheritance_info.rasterizationSamples = device_->max_msaa_samples;
-
-    VkCommandBufferInheritanceInfo inheritance_info{};
-    inheritance_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-    inheritance_info.pNext = &rendering_inheritance_info;
 
     VkCommandBufferBeginInfo secondary_begin_info{};
     secondary_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -397,7 +433,7 @@ void vkrndr::vulkan_renderer::record_command_buffer(vulkan_scene* scene,
     secondary_begin_info.pInheritanceInfo = &inheritance_info;
     check_result(vkBeginCommandBuffer(command_buffer, &secondary_begin_info));
 
-    scene->draw(command_buffer, swap_chain_->extent());
+    scene->draw(command_buffer, extent());
 
     if (imgui_layer_)
     {
@@ -419,10 +455,10 @@ void vkrndr::vulkan_renderer::recreate()
     {
         cleanup_images();
         color_image_ = create_image_and_view(device_,
-            swap_chain_->extent(),
+            extent(),
             1,
             device_->max_msaa_samples,
-            swap_chain_->image_format(),
+            image_format(),
             VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
                 VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,

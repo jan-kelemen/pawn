@@ -169,6 +169,10 @@ vkrndr::vulkan_pipeline vkrndr::vulkan_pipeline_builder::build()
         VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
     rendering_create_info.colorAttachmentCount = 1;
     rendering_create_info.pColorAttachmentFormats = &image_format_;
+    if (depth_stencil_)
+    {
+        rendering_create_info.depthAttachmentFormat = depth_format_;
+    }
 
     VkGraphicsPipelineCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -179,6 +183,10 @@ vkrndr::vulkan_pipeline vkrndr::vulkan_pipeline_builder::build()
     create_info.pMultisampleState = &multisampling;
     create_info.pViewportState = &viewport_state;
     create_info.pDynamicState = &dynamic_state;
+    if (depth_stencil_)
+    {
+        create_info.pDepthStencilState = &depth_stencil_.value();
+    }
     create_info.stageCount = count_cast(shader_stages.size());
     create_info.pStages = shader_stages.data();
     create_info.layout = pipeline_layout;
@@ -261,6 +269,29 @@ vkrndr::vulkan_pipeline_builder& vkrndr::vulkan_pipeline_builder::with_culling(
 {
     cull_mode_ = cull_mode;
     front_face_ = front_face;
+
+    return *this;
+}
+
+vkrndr::vulkan_pipeline_builder&
+vkrndr::vulkan_pipeline_builder::with_depth_stencil(VkFormat depth_format)
+{
+    depth_format_ = depth_format;
+
+    VkPipelineDepthStencilStateCreateInfo depth_stencil{};
+    depth_stencil.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depth_stencil.depthTestEnable = VK_TRUE;
+    depth_stencil.depthWriteEnable = VK_TRUE;
+    depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    depth_stencil.depthBoundsTestEnable = VK_FALSE;
+    depth_stencil.minDepthBounds = 0.0f;
+    depth_stencil.maxDepthBounds = 1.0f;
+    depth_stencil.stencilTestEnable = VK_FALSE;
+    depth_stencil.front = {};
+    depth_stencil.back = {};
+
+    depth_stencil_ = depth_stencil;
 
     return *this;
 }

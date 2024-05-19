@@ -8,6 +8,7 @@ target_sources(vkrndr
         ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_buffer.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_commands.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_context.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_depth_buffer.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_descriptors.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_device.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/include/vulkan_font.hpp
@@ -30,6 +31,7 @@ target_sources(vkrndr
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_buffer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_commands.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_context.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_depth_buffer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_descriptors.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_device.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan_font.cpp

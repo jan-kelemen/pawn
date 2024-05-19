@@ -5,6 +5,11 @@
 
 namespace vkrndr
 {
+    struct vulkan_image;
+} // namespace vkrndr
+
+namespace vkrndr
+{
     // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
     class [[nodiscard]] vulkan_scene
     {
@@ -12,7 +17,13 @@ namespace vkrndr
         virtual ~vulkan_scene() = default;
 
     public: // Interface
-        virtual VkClearValue clear_color() = 0;
+        [[nodiscard]] virtual VkClearValue clear_color() = 0;
+
+        [[nodiscard]] virtual VkClearValue clear_depth() = 0;
+
+        [[nodiscard]] virtual vulkan_image* depth_image() = 0;
+
+        virtual void resize(VkExtent2D extent) = 0;
 
         virtual void draw(VkCommandBuffer command_buffer,
             VkExtent2D extent) = 0;

@@ -63,6 +63,8 @@ namespace vkrndr
         vulkan_pipeline_builder& with_culling(VkCullModeFlags cull_mode,
             VkFrontFace front_face);
 
+        vulkan_pipeline_builder& with_depth_stencil(VkFormat depth_format);
+
     public: // Operators
         vulkan_pipeline_builder& operator=(
             vulkan_pipeline_builder const&) = delete;
@@ -86,6 +88,8 @@ namespace vkrndr
         VkCullModeFlags cull_mode_{VK_CULL_MODE_BACK_BIT};
         VkFrontFace front_face_{VK_FRONT_FACE_COUNTER_CLOCKWISE};
         std::optional<VkPushConstantRange> push_constants_;
+        VkFormat depth_format_{};
+        std::optional<VkPipelineDepthStencilStateCreateInfo> depth_stencil_;
     };
 } // namespace vkrndr
 

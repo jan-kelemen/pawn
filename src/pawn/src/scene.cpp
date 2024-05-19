@@ -1,8 +1,10 @@
 #include <scene.hpp>
 
 #include <vulkan_buffer.hpp>
+#include <vulkan_depth_buffer.hpp>
 #include <vulkan_descriptors.hpp>
 #include <vulkan_device.hpp>
+#include <vulkan_image.hpp>
 #include <vulkan_memory.hpp>
 #include <vulkan_pipeline.hpp>
 #include <vulkan_renderer.hpp>
@@ -128,6 +130,8 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
 
     descriptor_set_layout_ = create_descriptor_set_layout(vulkan_device_);
 
+    depth_buffer_ = vkrndr::create_depth_buffer(device, renderer->extent());
+
     pipeline_ = std::make_unique<vkrndr::vulkan_pipeline>(
         vkrndr::vulkan_pipeline_builder{vulkan_device_,
             renderer->image_format()}
@@ -136,10 +140,11 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
             .with_rasterization_samples(vulkan_device_->max_msaa_samples)
             .add_vertex_input(binding_description(), attribute_descriptions())
             .add_descriptor_set_layout(descriptor_set_layout_)
+            .with_depth_stencil(depth_buffer_.format)
             .build());
 
-    size_t const vertices_size{4 * sizeof(vertex)};
-    size_t const indices_size{6 * sizeof(uint16_t)};
+    size_t const vertices_size{8 * sizeof(vertex)};
+    size_t const indices_size{12 * sizeof(uint16_t)};
 
     vert_index_buffer_ = create_buffer(vulkan_device_,
         vertices_size + indices_size,
@@ -160,12 +165,24 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
         vertices[2] = {{0.5f, 0.5f, 0}};
         vertices[3] = {{-0.5f, 0.5f, 0}};
 
+        vertices[4] = {{-0.5f, -0.5f, -0.5f}};
+        vertices[5] = {{0.5f, -0.5f, -0.5f}};
+        vertices[6] = {{0.5f, 0.5f, -0.5f}};
+        vertices[7] = {{-0.5f, 0.5f, -0.5f}};
+
         indices[0] = 0;
         indices[1] = 1;
         indices[2] = 2;
         indices[3] = 2;
         indices[4] = 3;
         indices[5] = 0;
+
+        indices[6] = 4;
+        indices[7] = 5;
+        indices[8] = 6;
+        indices[9] = 6;
+        indices[10] = 7;
+        indices[11] = 4;
 
         unmap_memory(vulkan_device_, &vert_index_map);
     }
@@ -210,6 +227,8 @@ void pawn::scene::detach_renderer()
         vkDestroyDescriptorSetLayout(vulkan_device_->logical,
             descriptor_set_layout_,
             nullptr);
+
+        destroy(vulkan_device_, &depth_buffer_);
 
         destroy(vulkan_device_, &vert_index_buffer_);
     }
@@ -256,13 +275,23 @@ void pawn::scene::update()
 
 VkClearValue pawn::scene::clear_color() { return {{{1.f, .5f, .3f, 1.f}}}; }
 
+VkClearValue pawn::scene::clear_depth() { return {.depthStencil = {1.0f, 0}}; }
+
+vkrndr::vulkan_image* pawn::scene::depth_image() { return &depth_buffer_; }
+
+void pawn::scene::resize(VkExtent2D extent)
+{
+    destroy(vulkan_device_, &depth_buffer_);
+    depth_buffer_ = vkrndr::create_depth_buffer(vulkan_device_, extent);
+}
+
 void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
 {
     vkCmdBindPipeline(command_buffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline_->pipeline);
 
-    size_t const index_offset{4 * sizeof(vertex)};
+    size_t const index_offset{8 * sizeof(vertex)};
     VkDeviceSize const zero_offsets{0};
     vkCmdBindVertexBuffers(command_buffer,
         0,
@@ -294,7 +323,7 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
         0,
         nullptr);
 
-    vkCmdDrawIndexed(command_buffer, 6, 1, 0, 0, 0);
+    vkCmdDrawIndexed(command_buffer, 12, 1, 0, 0, 0);
 }
 
 void pawn::scene::draw_imgui() { }

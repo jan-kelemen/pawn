@@ -17,6 +17,7 @@ namespace vkrndr
         VkImage image{VK_NULL_HANDLE};
         VkDeviceMemory memory{VK_NULL_HANDLE};
         VkImageView view{VK_NULL_HANDLE};
+        VkFormat format{};
     };
 
     void destroy(vulkan_device const* device, vulkan_image* image);
