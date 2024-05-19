@@ -6,14 +6,15 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace vkrndr
 {
     struct vulkan_device;
     struct vulkan_pipeline;
     class vulkan_renderer;
-    class vulkan_swap_chain;
 } // namespace vkrndr
 
 namespace pawn
@@ -32,10 +33,15 @@ namespace pawn
 
     public: // Interface
         void attach_renderer(vkrndr::vulkan_device* device,
-            vkrndr::vulkan_swap_chain const* swap_chain,
             vkrndr::vulkan_renderer* renderer);
 
         void detach_renderer();
+
+        void begin_frame();
+
+        void end_frame();
+
+        void update();
 
     public: // vulkan_scene overrides
         VkClearValue clear_color() override;
@@ -49,13 +55,25 @@ namespace pawn
 
         scene& operator=(scene&&) noexcept = delete;
 
+    private: // Types
+        struct [[nodiscard]] frame_data final
+        {
+            VkDescriptorSet descriptor_set_{VK_NULL_HANDLE};
+            vkrndr::vulkan_buffer vertex_uniform_buffer_;
+        };
+
     private: // Data
         vkrndr::vulkan_device* vulkan_device_{};
         vkrndr::vulkan_renderer* vulkan_renderer_{};
 
+        vkrndr::vulkan_buffer vert_index_buffer_;
+
+        VkDescriptorSetLayout descriptor_set_layout_{VK_NULL_HANDLE};
         std::unique_ptr<vkrndr::vulkan_pipeline> pipeline_;
 
-        vkrndr::vulkan_buffer vert_index_buffer_;
+        std::vector<frame_data> frame_data_;
+
+        uint32_t current_frame_{};
     };
 } // namespace pawn
 

@@ -60,6 +60,9 @@ namespace vkrndr
         vulkan_pipeline_builder& with_push_constants(
             VkPushConstantRange push_constants);
 
+        vulkan_pipeline_builder& with_culling(VkCullModeFlags cull_mode,
+            VkFrontFace front_face);
+
     public: // Operators
         vulkan_pipeline_builder& operator=(
             vulkan_pipeline_builder const&) = delete;
@@ -80,6 +83,8 @@ namespace vkrndr
         std::vector<VkVertexInputAttributeDescription> vertex_input_attributes_;
         std::vector<VkDescriptorSetLayout> descriptor_set_layouts_;
         VkSampleCountFlagBits rasterization_samples_{VK_SAMPLE_COUNT_1_BIT};
+        VkCullModeFlags cull_mode_{VK_CULL_MODE_BACK_BIT};
+        VkFrontFace front_face_{VK_FRONT_FACE_COUNTER_CLOCKWISE};
         std::optional<VkPushConstantRange> push_constants_;
     };
 } // namespace vkrndr

@@ -112,8 +112,8 @@ vkrndr::vulkan_pipeline vkrndr::vulkan_pipeline_builder::build()
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.cullMode = cull_mode_;
+    rasterizer.frontFace = front_face_;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.lineWidth = 1.0f;
 
@@ -251,6 +251,16 @@ vkrndr::vulkan_pipeline_builder::with_push_constants(
     VkPushConstantRange const push_constants)
 {
     push_constants_ = push_constants;
+
+    return *this;
+}
+
+vkrndr::vulkan_pipeline_builder& vkrndr::vulkan_pipeline_builder::with_culling(
+    VkCullModeFlags const cull_mode,
+    VkFrontFace const front_face)
+{
+    cull_mode_ = cull_mode;
+    front_face_ = front_face;
 
     return *this;
 }

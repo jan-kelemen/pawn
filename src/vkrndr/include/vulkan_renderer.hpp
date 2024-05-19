@@ -44,6 +44,10 @@ namespace vkrndr
         [[nodiscard]] constexpr VkDescriptorPool
         descriptor_pool() const noexcept;
 
+        [[nodiscard]] VkFormat image_format() const;
+
+        [[nodiscard]] uint32_t image_count() const;
+
         void set_imgui_layer(bool state);
 
         void begin_frame();

@@ -98,6 +98,16 @@ vkrndr::vulkan_renderer::~vulkan_renderer()
     cleanup_images();
 }
 
+VkFormat vkrndr::vulkan_renderer::image_format() const
+{
+    return swap_chain_->image_format();
+}
+
+uint32_t vkrndr::vulkan_renderer::image_count() const
+{
+    return vulkan_swap_chain::max_frames_in_flight;
+}
+
 void vkrndr::vulkan_renderer::set_imgui_layer(bool state)
 {
     if (imgui_layer_)
