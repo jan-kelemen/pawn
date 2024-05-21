@@ -82,6 +82,8 @@ namespace pawn
         std::vector<frame_data> frame_data_;
 
         uint32_t current_frame_{};
+        size_t vertex_count_{};
+        size_t index_count_{};
     };
 } // namespace pawn
 

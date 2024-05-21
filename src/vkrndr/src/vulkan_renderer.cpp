@@ -419,6 +419,12 @@ vkrndr::vulkan_font vkrndr::vulkan_renderer::load_font(
         texture};
 }
 
+vkrndr::gltf_model vkrndr::vulkan_renderer::load_model(
+    std::filesystem::path const& model_path)
+{
+    return gltf_manager_->load(model_path);
+}
+
 void vkrndr::vulkan_renderer::record_command_buffer(
     VkCommandBufferInheritanceInfo const inheritance_info,
     vulkan_scene* scene,

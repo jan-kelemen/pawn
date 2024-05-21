@@ -143,8 +143,13 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
             .with_depth_stencil(depth_buffer_.format)
             .build());
 
-    size_t const vertices_size{8 * sizeof(vertex)};
-    size_t const indices_size{12 * sizeof(uint16_t)};
+    vkrndr::gltf_model model{renderer->load_model("chess_set_2k.gltf")};
+
+    vertex_count_ = model.nodes[1].mesh.value().primitives[0].vertices.size();
+    size_t const vertices_size{vertex_count_ * sizeof(vertex)};
+
+    index_count_ = model.nodes[1].mesh.value().primitives[0].indices.size();
+    size_t const indices_size{index_count_ * sizeof(uint32_t)};
 
     vert_index_buffer_ = create_buffer(vulkan_device_,
         vertices_size + indices_size,
@@ -158,31 +163,18 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
             vertices_size + indices_size)};
 
         vertex* const vertices{vert_index_map.as<vertex>(0)};
-        uint16_t* const indices{vert_index_map.as<uint16_t>(vertices_size)};
+        uint32_t* const indices{vert_index_map.as<uint32_t>(vertices_size)};
 
-        vertices[0] = {{-0.5f, -0.5f, 0}};
-        vertices[1] = {{0.5f, -0.5f, 0}};
-        vertices[2] = {{0.5f, 0.5f, 0}};
-        vertices[3] = {{-0.5f, 0.5f, 0}};
+        std::ranges::transform(
+            model.nodes[1].mesh.value().primitives[0].vertices,
+            vertices,
+            [](glm::fvec3 const& vec) {
+                return vertex{.position = {vec.x * 10, vec.y * 10, vec.z * 10}};
+            },
+            &vkrndr::gltf_vertex::position);
 
-        vertices[4] = {{-0.5f, -0.5f, -0.5f}};
-        vertices[5] = {{0.5f, -0.5f, -0.5f}};
-        vertices[6] = {{0.5f, 0.5f, -0.5f}};
-        vertices[7] = {{-0.5f, 0.5f, -0.5f}};
-
-        indices[0] = 0;
-        indices[1] = 1;
-        indices[2] = 2;
-        indices[3] = 2;
-        indices[4] = 3;
-        indices[5] = 0;
-
-        indices[6] = 4;
-        indices[7] = 5;
-        indices[8] = 6;
-        indices[9] = 6;
-        indices[10] = 7;
-        indices[11] = 4;
+        std::ranges::copy(model.nodes[1].mesh.value().primitives[0].indices,
+            indices);
 
         unmap_memory(vulkan_device_, &vert_index_map);
     }
@@ -291,7 +283,7 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline_->pipeline);
 
-    size_t const index_offset{8 * sizeof(vertex)};
+    size_t const index_offset{vertex_count_ * sizeof(vertex)};
     VkDeviceSize const zero_offsets{0};
     vkCmdBindVertexBuffers(command_buffer,
         0,
@@ -323,7 +315,12 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
         0,
         nullptr);
 
-    vkCmdDrawIndexed(command_buffer, 12, 1, 0, 0, 0);
+    vkCmdDrawIndexed(command_buffer,
+        vkrndr::count_cast(index_count_),
+        1,
+        0,
+        0,
+        0);
 }
 
 void pawn::scene::draw_imgui() { }

@@ -3,6 +3,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <gltf_manager.hpp>
 #include <vulkan_font.hpp>
 #include <vulkan_image.hpp>
 
@@ -64,6 +65,9 @@ namespace vkrndr
         [[nodiscard]] vulkan_font
         load_font(std::filesystem::path const& font_path, uint32_t font_size);
 
+        [[nodiscard]] gltf_model load_model(
+            std::filesystem::path const& model_path);
+
     public: // Operators
         vulkan_renderer& operator=(vulkan_renderer const&) = delete;
 
@@ -96,6 +100,7 @@ namespace vkrndr
 
         std::unique_ptr<imgui_render_layer> imgui_layer_;
         std::unique_ptr<font_manager> font_manager_;
+        std::unique_ptr<gltf_manager> gltf_manager_;
 
         uint32_t current_frame_{};
     };

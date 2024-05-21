@@ -1,1 +1,4 @@
 * text eol=lf whitespace
+*.bin binary
+*.jpg binary
+*.gltf binary

@@ -18,6 +18,7 @@ class PawnConan(ConanFile):
         self.requires("sdl/2.30.1")
         self.requires("spdlog/1.13.0")
         self.requires("stb/cci.20230920")
+        self.requires("tinygltf/2.8.19")
         self.requires("vulkan-headers/1.3.268.0")
         self.requires("vulkan-loader/1.3.268.0")
 

@@ -19,6 +19,7 @@ find_package(glm REQUIRED)
 find_package(SDL2)
 find_package(spdlog REQUIRED)
 find_package(stb REQUIRED)
+find_package(TinyGLTF REQUIRED)
 find_package(VulkanHeaders REQUIRED)
 find_package(VulkanLoader REQUIRED)
 
