@@ -145,10 +145,10 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
 
     vkrndr::gltf_model model{renderer->load_model("chess_set_2k.gltf")};
 
-    vertex_count_ = model.nodes[1].mesh.value().primitives[0].vertices.size();
+    vertex_count_ = model.nodes[0].mesh.value().primitives[0].vertices.size();
     size_t const vertices_size{vertex_count_ * sizeof(vertex)};
 
-    index_count_ = model.nodes[1].mesh.value().primitives[0].indices.size();
+    index_count_ = model.nodes[0].mesh.value().primitives[0].indices.size();
     size_t const indices_size{index_count_ * sizeof(uint32_t)};
 
     vert_index_buffer_ = create_buffer(vulkan_device_,
@@ -166,14 +166,12 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
         uint32_t* const indices{vert_index_map.as<uint32_t>(vertices_size)};
 
         std::ranges::transform(
-            model.nodes[1].mesh.value().primitives[0].vertices,
+            model.nodes[0].mesh.value().primitives[0].vertices,
             vertices,
-            [](glm::fvec3 const& vec) {
-                return vertex{.position = {vec.x * 10, vec.y * 10, vec.z * 10}};
-            },
+            [](glm::fvec3 const& vec) { return vertex{.position = vec}; },
             &vkrndr::gltf_vertex::position);
 
-        std::ranges::copy(model.nodes[1].mesh.value().primitives[0].indices,
+        std::ranges::copy(model.nodes[0].mesh.value().primitives[0].indices,
             indices);
 
         unmap_memory(vulkan_device_, &vert_index_map);
@@ -248,9 +246,11 @@ void pawn::scene::update()
             frame_data_[current_frame_].vertex_uniform_buffer_.memory,
             sizeof(transform))};
 
-        transform uniform{.model = glm::rotate(glm::mat4(1.0f),
-                              time * glm::radians(90.0f),
-                              glm::fvec3(0.0f, 0.0f, 1.0f)),
+        transform uniform{
+            .model = glm::rotate(
+                glm::scale(glm::mat4(1.0f), glm::fvec3(10.f, 10.f, 10.f)),
+                time * glm::radians(90.0f),
+                glm::fvec3(0.0f, 0.0f, 1.0f)),
             .view = glm::lookAt(glm::fvec3(2.0f, 2.0f, 2.0f),
                 glm::fvec3(0.0f, 0.0f, 0.0f),
                 glm::fvec3(0.0f, 0.0f, 1.0f)),
@@ -293,7 +293,7 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
     vkCmdBindIndexBuffer(command_buffer,
         vert_index_buffer_.buffer,
         index_offset,
-        VK_INDEX_TYPE_UINT16);
+        VK_INDEX_TYPE_UINT32);
 
     VkViewport const viewport{.x = 0.0f,
         .y = 0.0f,
