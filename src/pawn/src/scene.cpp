@@ -1,5 +1,6 @@
 #include <scene.hpp>
 
+#include <gltf_manager.hpp>
 #include <vulkan_buffer.hpp>
 #include <vulkan_depth_buffer.hpp>
 #include <vulkan_descriptors.hpp>
@@ -11,6 +12,7 @@
 #include <vulkan_utility.hpp>
 
 #define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/fwd.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/mat4x4.hpp>
@@ -18,6 +20,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstddef>
@@ -151,6 +154,8 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
     index_count_ = model.nodes[0].mesh.value().primitives[0].indices.size();
     size_t const indices_size{index_count_ * sizeof(uint32_t)};
 
+    local_matrix_ = local_matrix(model.nodes[0]);
+
     vert_index_buffer_ = create_buffer(vulkan_device_,
         vertices_size + indices_size,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
@@ -246,18 +251,16 @@ void pawn::scene::update()
             frame_data_[current_frame_].vertex_uniform_buffer_.memory,
             sizeof(transform))};
 
-        transform uniform{
-            .model = glm::rotate(
-                glm::scale(glm::mat4(1.0f), glm::fvec3(10.f, 10.f, 10.f)),
-                time * glm::radians(90.0f),
-                glm::fvec3(0.0f, 0.0f, 1.0f)),
-            .view = glm::lookAt(glm::fvec3(2.0f, 2.0f, 2.0f),
-                glm::fvec3(0.0f, 0.0f, 0.0f),
-                glm::fvec3(0.0f, 0.0f, 1.0f)),
-            .projection =
-                glm::perspective(glm::radians(45.0f), 1.f, 0.1f, 10.0f)};
+        constexpr glm::fvec3 front_face{0, 0, -1};
+        constexpr glm::fvec3 up_direction{0, -1, 0};
+        constexpr glm::fvec3 camera{0, 0, -1};
 
-        uniform.projection[1][1] *= -1;
+        transform uniform{.model = glm::rotate(
+                              glm::scale(local_matrix_, glm::fvec3(10, 10, 10)),
+                              time * glm::radians(90.0f),
+                              glm::fvec3(0.0f, 1.0f, 0.0f)),
+            .view = glm::lookAt(camera, camera + front_face, up_direction),
+            .projection = glm::mat4(1)};
 
         *uniform_map.as<transform>() = uniform;
 

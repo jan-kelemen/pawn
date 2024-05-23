@@ -2,6 +2,8 @@
 #define VKRNDR_GLTF_MANAGER_INCLUDED
 
 #include <glm/fwd.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
 #include <cstdint>
@@ -30,12 +32,18 @@ namespace vkrndr
     struct [[nodiscard]] gltf_node final
     {
         std::optional<gltf_mesh> mesh;
+        glm::fvec3 translation{0.0f};
+        glm::fvec3 scale{1.0f};
+        glm::fquat rotation{};
+        glm::fmat4 matrix{1.0f};
     };
 
     struct [[nodiscard]] gltf_model final
     {
         std::vector<gltf_node> nodes;
     };
+
+    glm::fmat4 local_matrix(gltf_node const& node);
 
     class [[nodiscard]] gltf_manager final
     {

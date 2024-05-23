@@ -5,6 +5,10 @@
 #include <fmt/core.h>
 #include <fmt/std.h>
 
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/fwd.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <string>
@@ -32,10 +36,33 @@ vkrndr::gltf_model vkrndr::gltf_manager::load(std::filesystem::path const& path)
     for (tinygltf::Node const& node : model.nodes)
     {
         gltf_node new_node;
+
+        if (node.translation.size() == 3)
+        {
+            new_node.translation = glm::make_vec3(node.translation.data());
+        }
+
+        if (node.rotation.size() == 4)
+        {
+            glm::fquat const quaternion{glm::make_quat(node.rotation.data())};
+            new_node.rotation = glm::mat4{quaternion};
+        }
+
+        if (node.scale.size() == 3)
+        {
+            new_node.scale = glm::make_vec3(node.scale.data());
+        }
+
+        if (node.matrix.size() == 16)
+        {
+            new_node.matrix = glm::make_mat4x4(node.matrix.data());
+        };
+
         if (node.mesh != -1)
         {
             gltf_mesh new_mesh;
             tinygltf::Mesh const& mesh{model.meshes[node.mesh]};
+
             for (tinygltf::Primitive const& primitive : mesh.primitives)
             {
                 gltf_primitive new_primitive;
@@ -125,4 +152,11 @@ vkrndr::gltf_model vkrndr::gltf_manager::load(std::filesystem::path const& path)
         rv.nodes.push_back(std::move(new_node));
     }
     return rv;
+}
+
+glm::fmat4 vkrndr::local_matrix(gltf_node const& node)
+{
+    return glm::translate(glm::mat4(1.0f), node.translation) *
+        glm::mat4(node.rotation) * glm::scale(glm::mat4(1.0f), node.scale) *
+        node.matrix;
 }

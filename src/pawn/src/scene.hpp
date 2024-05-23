@@ -5,6 +5,9 @@
 #include <vulkan_image.hpp>
 #include <vulkan_scene.hpp>
 
+#include <glm/fwd.hpp>
+#include <glm/mat4x4.hpp>
+
 #include <vulkan/vulkan_core.h>
 
 #include <cstdint>
@@ -84,6 +87,7 @@ namespace pawn
         uint32_t current_frame_{};
         size_t vertex_count_{};
         size_t index_count_{};
+        glm::fmat4 local_matrix_{};
     };
 } // namespace pawn
 
