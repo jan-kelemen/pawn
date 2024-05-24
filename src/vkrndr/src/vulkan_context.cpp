@@ -23,6 +23,17 @@ namespace
 {
     constexpr std::array const validation_layers{"VK_LAYER_KHRONOS_validation"};
 
+    constexpr std::array const validation_feature_enable{
+        VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT};
+
+    constexpr VkValidationFeaturesEXT validation_features = {
+        VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,
+        nullptr,
+        1,
+        validation_feature_enable.data(),
+        0,
+        nullptr};
+
     [[nodiscard]] bool check_validation_layer_support()
     {
         uint32_t count{};
@@ -170,6 +181,7 @@ vkrndr::vulkan_context vkrndr::create_context(
             create_info.ppEnabledLayerNames = validation_layers.data();
 
             required_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            debug_create_info.pNext = &validation_features;
             create_info.pNext = &debug_create_info;
         }
         else
