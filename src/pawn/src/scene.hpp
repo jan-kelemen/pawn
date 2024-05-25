@@ -24,6 +24,15 @@ namespace vkrndr
 
 namespace pawn
 {
+    struct [[nodiscard]] mesh final
+    {
+        int32_t vertex_offset{};
+        uint32_t vertex_count{};
+        int32_t index_offset{};
+        uint32_t index_count{};
+        glm::fmat4 local_matrix{};
+    };
+
     class [[nodiscard]] scene final : public vkrndr::vulkan_scene
     {
     public: // Construction
@@ -89,6 +98,8 @@ namespace pawn
         size_t vertex_count_{};
         size_t index_count_{};
         glm::fmat4 local_matrix_{};
+
+        std::vector<mesh> meshes_;
     };
 } // namespace pawn
 

@@ -26,6 +26,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <ranges>
 
 // IWYU pragma: no_include <glm/detail/func_trigonometric.inl>
 // IWYU pragma: no_include <glm/detail/qualifier.hpp>
@@ -36,7 +37,7 @@ namespace
 {
     struct [[nodiscard]] vertex final
     {
-        glm::fvec3 position;
+        glm::fvec4 position;
     };
 
     struct [[nodiscard]] transform final
@@ -44,6 +45,11 @@ namespace
         glm::fmat4 model;
         glm::fmat4 view;
         glm::fmat4 projection;
+    };
+
+    struct [[nodiscard]] push_constants final
+    {
+        int transform_index;
     };
 
     consteval auto binding_description()
@@ -62,7 +68,7 @@ namespace
         constexpr std::array descriptions{
             VkVertexInputAttributeDescription{.location = 0,
                 .binding = 0,
-                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .format = VK_FORMAT_R32G32B32A32_SFLOAT,
                 .offset = offsetof(vertex, position)}};
 
         return descriptions;
@@ -144,18 +150,32 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
             .with_rasterization_samples(vulkan_device_->max_msaa_samples)
             .add_vertex_input(binding_description(), attribute_descriptions())
             .add_descriptor_set_layout(descriptor_set_layout_)
+            .with_push_constants({.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                .offset = 0,
+                .size = sizeof(push_constants)})
             .with_depth_stencil(depth_buffer_.format)
             .build());
 
     vkrndr::gltf_model model{renderer->load_model("chess_set_2k.gltf")};
 
-    auto const& node{model.nodes.front()};
-    if (node.mesh)
+    int32_t vertex_offset{};
+    int32_t index_offset{};
+    for (auto const& node : model.nodes)
     {
-        vertex_count_ = node.mesh->primitives[0].vertices.size();
-        index_count_ = node.mesh->primitives[0].indices.size();
+        if (node.mesh)
+        {
+            auto const& current_mesh{meshes_.emplace_back(vertex_offset,
+                node.mesh->primitives[0].vertices.size(),
+                index_offset,
+                node.mesh->primitives[0].indices.size(),
+                local_matrix(node))};
+
+            vertex_offset += current_mesh.vertex_count;
+            vertex_count_ += current_mesh.vertex_count;
+            index_offset += current_mesh.index_count;
+            index_count_ += current_mesh.index_count;
+        }
     }
-    local_matrix_ = local_matrix(node);
 
     size_t const vertices_size{vertex_count_ * sizeof(vertex)};
     size_t const indices_size{index_count_ * sizeof(uint32_t)};
@@ -165,25 +185,39 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-    if (node.mesh)
+    vkrndr::mapped_memory vert_index_map{vkrndr::map_memory(vulkan_device_,
+        vert_index_buffer_.memory,
+        vertices_size + indices_size)};
+
+    vertex* vertices{vert_index_map.as<vertex>()};
+    uint32_t* indices{vert_index_map.as<uint32_t>(vertices_size)};
+
+    size_t i{};
+    for (auto const& node : model.nodes)
     {
-        vkrndr::mapped_memory vert_index_map{vkrndr::map_memory(vulkan_device_,
-            vert_index_buffer_.memory,
-            vertices_size + indices_size)};
+        if (node.mesh)
+        {
+            auto const& current_mesh{meshes_[i]};
 
-        vertex* const vertices{vert_index_map.as<vertex>(0)};
-        uint32_t* const indices{vert_index_map.as<uint32_t>(vertices_size)};
+            vertices = std::ranges::transform(
+                node.mesh->primitives[0].vertices,
+                vertices,
+                [&i](glm::fvec3 const& vec) {
+                    return vertex{
+                        .position = glm::fvec4(vec, static_cast<float>(i))};
+                },
+                &vkrndr::gltf_vertex::position)
+                           .out;
 
-        std::ranges::transform(
-            node.mesh->primitives[0].vertices,
-            vertices,
-            [](glm::fvec3 const& vec) { return vertex{.position = vec}; },
-            &vkrndr::gltf_vertex::position);
+            indices =
+                std::ranges::copy(node.mesh->primitives[0].indices, indices)
+                    .out;
 
-        std::ranges::copy(node.mesh->primitives[0].indices, indices);
-
-        unmap_memory(vulkan_device_, &vert_index_map);
+            ++i;
+        }
     }
+
+    unmap_memory(vulkan_device_, &vert_index_map);
 
     frame_data_.resize(renderer->image_count());
     for (uint32_t i{}; i != frame_data_.size(); ++i)
@@ -256,15 +290,13 @@ void pawn::scene::update()
 
         constexpr glm::fvec3 front_face{0, 0, -1};
         constexpr glm::fvec3 up_direction{0, -1, 0};
-        constexpr glm::fvec3 camera{0, 0, -1};
+        constexpr glm::fvec3 camera{0, 0, 0};
 
-        transform const uniform{
-            .model =
-                glm::rotate(glm::scale(local_matrix_, glm::fvec3(10, 10, 10)),
-                    time * glm::radians(90.0f),
-                    glm::fvec3(0.0f, 1.0f, 0.0f)),
+        transform const uniform{.model = glm::rotate(meshes_[1].local_matrix,
+                                    time * glm::radians(90.0f),
+                                    glm::fvec3(0.0f, 1.0f, 0.0f)),
             .view = glm::lookAt(camera, camera + front_face, up_direction),
-            .projection = glm::mat4(1)};
+            .projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f)};
 
         *uniform_map.as<transform>() = uniform;
 
@@ -322,12 +354,24 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
         0,
         nullptr);
 
-    vkCmdDrawIndexed(command_buffer,
-        vkrndr::count_cast(index_count_),
-        1,
-        0,
-        0,
-        0);
+    for (int i{}; i != static_cast<int>(meshes_.size()); ++i)
+    {
+        push_constants pc{.transform_index = i};
+
+        vkCmdPushConstants(command_buffer,
+            pipeline_->pipeline_layout,
+            VK_SHADER_STAGE_VERTEX_BIT,
+            0,
+            sizeof(push_constants),
+            &pc);
+
+        vkCmdDrawIndexed(command_buffer,
+            meshes_[i].index_count,
+            1,
+            meshes_[i].index_offset,
+            meshes_[i].vertex_offset,
+            0);
+    }
 }
 
 void pawn::scene::draw_imgui() { }
