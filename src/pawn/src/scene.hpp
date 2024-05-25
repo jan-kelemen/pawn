@@ -6,10 +6,11 @@
 #include <vulkan_scene.hpp>
 
 #include <glm/fwd.hpp>
-#include <glm/mat4x4.hpp>
+#include <glm/mat4x4.hpp> // IWYU pragma: keep
 
 #include <vulkan/vulkan_core.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>

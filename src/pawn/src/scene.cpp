@@ -25,6 +25,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 // IWYU pragma: no_include <glm/detail/func_trigonometric.inl>
 // IWYU pragma: no_include <glm/detail/qualifier.hpp>
@@ -148,20 +149,23 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
 
     vkrndr::gltf_model model{renderer->load_model("chess_set_2k.gltf")};
 
-    vertex_count_ = model.nodes[0].mesh.value().primitives[0].vertices.size();
+    auto const& node{model.nodes.front()};
+    if (node.mesh)
+    {
+        vertex_count_ = node.mesh->primitives[0].vertices.size();
+        index_count_ = node.mesh->primitives[0].indices.size();
+    }
+    local_matrix_ = local_matrix(node);
+
     size_t const vertices_size{vertex_count_ * sizeof(vertex)};
-
-    index_count_ = model.nodes[0].mesh.value().primitives[0].indices.size();
     size_t const indices_size{index_count_ * sizeof(uint32_t)};
-
-    local_matrix_ = local_matrix(model.nodes[0]);
-
     vert_index_buffer_ = create_buffer(vulkan_device_,
         vertices_size + indices_size,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
+    if (node.mesh)
     {
         vkrndr::mapped_memory vert_index_map{vkrndr::map_memory(vulkan_device_,
             vert_index_buffer_.memory,
@@ -171,13 +175,12 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
         uint32_t* const indices{vert_index_map.as<uint32_t>(vertices_size)};
 
         std::ranges::transform(
-            model.nodes[0].mesh.value().primitives[0].vertices,
+            node.mesh->primitives[0].vertices,
             vertices,
             [](glm::fvec3 const& vec) { return vertex{.position = vec}; },
             &vkrndr::gltf_vertex::position);
 
-        std::ranges::copy(model.nodes[0].mesh.value().primitives[0].indices,
-            indices);
+        std::ranges::copy(node.mesh->primitives[0].indices, indices);
 
         unmap_memory(vulkan_device_, &vert_index_map);
     }
@@ -255,10 +258,11 @@ void pawn::scene::update()
         constexpr glm::fvec3 up_direction{0, -1, 0};
         constexpr glm::fvec3 camera{0, 0, -1};
 
-        transform uniform{.model = glm::rotate(
-                              glm::scale(local_matrix_, glm::fvec3(10, 10, 10)),
-                              time * glm::radians(90.0f),
-                              glm::fvec3(0.0f, 1.0f, 0.0f)),
+        transform const uniform{
+            .model =
+                glm::rotate(glm::scale(local_matrix_, glm::fvec3(10, 10, 10)),
+                    time * glm::radians(90.0f),
+                    glm::fvec3(0.0f, 1.0f, 0.0f)),
             .view = glm::lookAt(camera, camera + front_face, up_direction),
             .projection = glm::mat4(1)};
 

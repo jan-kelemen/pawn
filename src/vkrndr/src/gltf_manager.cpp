@@ -3,7 +3,7 @@
 #include <tinygltf_impl.hpp>
 
 #include <fmt/core.h>
-#include <fmt/std.h>
+#include <fmt/std.h> // IWYU pragma: keep
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -11,7 +11,79 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <iterator>
+#include <stdexcept>
 #include <string>
+#include <type_traits>
+#include <utility>
+
+// IWYU pragma: no_include <map>
+
+namespace
+{
+    template<typename T>
+    [[nodiscard]] constexpr size_t size_cast(T const count)
+    {
+        assert(std::in_range<size_t>(count));
+        return static_cast<size_t>(count);
+    }
+
+    std::vector<uint32_t> load_indices(tinygltf::Model const& model,
+        tinygltf::Primitive const& primitive)
+    {
+        tinygltf::Accessor const& accessor{
+            model.accessors[size_cast(primitive.indices)]};
+        tinygltf::BufferView const& bufferView{
+            model.bufferViews[size_cast(accessor.bufferView)]};
+        tinygltf::Buffer const& buffer{
+            model.buffers[size_cast(bufferView.buffer)]};
+
+        std::vector<uint32_t> rv;
+        rv.reserve(accessor.count);
+
+        // glTF supports different component types of indices
+        switch (accessor.componentType)
+        {
+        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
+        {
+            // NOLINTNEXTLINE
+            auto const* const buf{reinterpret_cast<uint32_t const*>(
+                &buffer.data[accessor.byteOffset + bufferView.byteOffset])};
+            rv.insert(std::end(rv), buf, buf + accessor.count);
+            break;
+        }
+        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
+        {
+            // NOLINTNEXTLINE
+            auto const* const buf{reinterpret_cast<uint16_t const*>(
+                &buffer.data[accessor.byteOffset + bufferView.byteOffset])};
+            std::ranges::copy(buf,
+                buf + accessor.count,
+                std::back_inserter(rv));
+            break;
+        }
+        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
+        {
+            // NOLINTNEXTLINE
+            auto const* const buf{reinterpret_cast<uint8_t const*>(
+                &buffer.data[accessor.byteOffset + bufferView.byteOffset])};
+            std::ranges::copy(buf,
+                buf + accessor.count,
+                std::back_inserter(rv));
+            break;
+        }
+        default:
+            throw std::runtime_error{
+                fmt::format("Index component type {} not supported",
+                    accessor.componentType)};
+        }
+
+        return rv;
+    }
+} // namespace
 
 vkrndr::gltf_model vkrndr::gltf_manager::load(std::filesystem::path const& path)
 {
@@ -36,7 +108,6 @@ vkrndr::gltf_model vkrndr::gltf_manager::load(std::filesystem::path const& path)
     for (tinygltf::Node const& node : model.nodes)
     {
         gltf_node new_node;
-
         if (node.translation.size() == 3)
         {
             new_node.translation = glm::make_vec3(node.translation.data());
@@ -61,90 +132,44 @@ vkrndr::gltf_model vkrndr::gltf_manager::load(std::filesystem::path const& path)
         if (node.mesh != -1)
         {
             gltf_mesh new_mesh;
-            tinygltf::Mesh const& mesh{model.meshes[node.mesh]};
+            tinygltf::Mesh const& mesh{model.meshes[size_cast(node.mesh)]};
 
             for (tinygltf::Primitive const& primitive : mesh.primitives)
             {
                 gltf_primitive new_primitive;
+
                 // Vertices
                 {
-                    float const* positionBuffer = nullptr;
-                    size_t vertexCount = 0;
+                    float const* position_buffer{nullptr};
+                    size_t vertex_count{};
 
                     // Get buffer data for vertex normals
-                    if (primitive.attributes.find("POSITION") !=
-                        primitive.attributes.end())
+                    if (auto const it{primitive.attributes.find("POSITION")};
+                        it != primitive.attributes.end())
                     {
                         tinygltf::Accessor const& accessor =
-                            model.accessors
-                                [primitive.attributes.find("POSITION")->second];
+                            model.accessors[size_cast(it->second)];
                         tinygltf::BufferView const& view =
-                            model.bufferViews[accessor.bufferView];
-                        positionBuffer = reinterpret_cast<float const*>(&(
-                            model.buffers[view.buffer]
+                            model.bufferViews[size_cast(accessor.bufferView)];
+                        // NOLINTNEXTLINE
+                        position_buffer = reinterpret_cast<float const*>(&(
+                            model.buffers[size_cast(view.buffer)]
                                 .data[accessor.byteOffset + view.byteOffset]));
-                        vertexCount = accessor.count;
+                        vertex_count = accessor.count;
                     }
 
-                    for (size_t v = 0; v < vertexCount; v++)
+                    for (size_t vertex{}; vertex != vertex_count; ++vertex)
                     {
-                        gltf_vertex vert{};
-                        vert.position = glm::make_vec3(&positionBuffer[v * 3]);
+                        gltf_vertex const vert{
+                            .position =
+                                glm::make_vec3(&position_buffer[vertex * 3])};
+                        static_assert(std::is_trivial_v<gltf_vertex>);
                         new_primitive.vertices.push_back(vert);
                     }
                 }
 
-                // Indices
-                {
-                    tinygltf::Accessor const& accessor =
-                        model.accessors[primitive.indices];
-                    tinygltf::BufferView const& bufferView =
-                        model.bufferViews[accessor.bufferView];
-                    tinygltf::Buffer const& buffer =
-                        model.buffers[bufferView.buffer];
+                new_primitive.indices = load_indices(model, primitive);
 
-                    // glTF supports different component types of indices
-                    switch (accessor.componentType)
-                    {
-                    case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
-                    {
-                        uint32_t const* buf = reinterpret_cast<uint32_t const*>(
-                            &buffer.data[accessor.byteOffset +
-                                bufferView.byteOffset]);
-                        for (size_t index = 0; index < accessor.count; index++)
-                        {
-                            new_primitive.indices.push_back(buf[index]);
-                        }
-                        break;
-                    }
-                    case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
-                    {
-                        uint16_t const* buf = reinterpret_cast<uint16_t const*>(
-                            &buffer.data[accessor.byteOffset +
-                                bufferView.byteOffset]);
-                        for (size_t index = 0; index < accessor.count; index++)
-                        {
-                            new_primitive.indices.push_back(buf[index]);
-                        }
-                        break;
-                    }
-                    case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
-                    {
-                        uint8_t const* buf = reinterpret_cast<uint8_t const*>(
-                            &buffer.data[accessor.byteOffset +
-                                bufferView.byteOffset]);
-                        for (size_t index = 0; index < accessor.count; index++)
-                        {
-                            new_primitive.indices.push_back(buf[index]);
-                        }
-                        break;
-                    }
-                    default:
-                        throw std::runtime_error{
-                            fmt::format("Index component type {} not supported",
-                                accessor.componentType)};
-                    }
-                }
                 new_mesh.primitives.push_back(std::move(new_primitive));
             }
             new_node.mesh = std::move(new_mesh);

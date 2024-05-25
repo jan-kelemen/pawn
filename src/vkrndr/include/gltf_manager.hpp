@@ -2,9 +2,9 @@
 #define VKRNDR_GLTF_MANAGER_INCLUDED
 
 #include <glm/fwd.hpp>
-#include <glm/gtc/quaternion.hpp>
-#include <glm/mat4x4.hpp>
-#include <glm/vec3.hpp>
+#include <glm/gtc/quaternion.hpp> // IWYU pragma: keep
+#include <glm/mat4x4.hpp> // IWYU pragma: keep
+#include <glm/vec3.hpp> // IWYU pragma: keep
 
 #include <cstdint>
 #include <filesystem>
