@@ -21,6 +21,6 @@ layout(location = 0) out vec2 outColor;
 void main() {
     Transform transform = transformBuffer.transforms[pushConsts.transformIndex];
     gl_Position = transform.projection * transform.view * transform.model * vec4(inPosition.xyz, 1.0);
-    outColor = vec2(inPosition.x, inPosition.x * 3);
+    outColor = vec2(0.1f + pushConsts.transformIndex / 40.f, 0.1f +  pushConsts.transformIndex / 40.f);
 }
  

@@ -11,6 +11,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -101,9 +102,10 @@ namespace pawn
 
         uint32_t current_frame_{};
 
-        glm::fvec3 front_face_{0, 0, -1};
+        glm::fvec3 front_face_{-1.f, -1.f, -1.f};
         glm::fvec3 up_direction_{0, -1, 0};
         glm::fvec3 camera_{0, 0, 0};
+        std::array<float, 3> projection_{0.5f, -0.4f, 0.4f};
     };
 } // namespace pawn
 

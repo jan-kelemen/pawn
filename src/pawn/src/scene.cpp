@@ -11,8 +11,6 @@
 #include <vulkan_renderer.hpp>
 #include <vulkan_utility.hpp>
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/fwd.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -285,10 +283,16 @@ void pawn::scene::update()
         for (auto const& [transform_index, mesh] :
             std::views::enumerate(meshes_))
         {
+            // https://computergraphics.stackexchange.com/a/13809
             transforms[transform_index] = {.model = mesh.local_matrix,
                 .view =
                     glm::lookAt(camera_, camera_ + front_face_, up_direction_),
-                .projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f)};
+                .projection = glm::orthoRH_ZO(camera_.x - projection_[0],
+                    camera_.x + projection_[0],
+                    camera_.y - projection_[0],
+                    camera_.y + projection_[0],
+                    camera_.z + projection_[1],
+                    camera_.z + projection_[2])};
         }
 
         unmap_memory(vulkan_device_, &uniform_map);
@@ -374,5 +378,23 @@ void pawn::scene::draw_imgui()
         glm::value_ptr(up_direction_),
         -10.f,
         10.f);
+    ImGui::End();
+
+    ImGui::Begin("Projection");
+    ImGui::SliderFloat("Zoom", &projection_[0], 0, 10.f);
+    ImGui::SliderFloat("Near", &projection_[1], -10.f, 10.f);
+    ImGui::SliderFloat("Far", &projection_[2], -10.f, 10.f);
+    ImGui::End();
+
+    ImGui::Begin("Eye");
+    ImGui::Value("Eye x", camera_.x);
+    ImGui::Value("Eye y", camera_.y);
+    ImGui::Value("Eye z", camera_.z);
+    ImGui::End();
+
+    ImGui::Begin("Center");
+    ImGui::Value("Center x", (camera_ + front_face_).x);
+    ImGui::Value("Center y", (camera_ + front_face_).y);
+    ImGui::Value("Center z", (camera_ + front_face_).z);
     ImGui::End();
 }
