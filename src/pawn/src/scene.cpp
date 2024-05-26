@@ -27,11 +27,11 @@
 #include <cstdint>
 #include <optional>
 #include <ranges>
+#include <span>
 
 // IWYU pragma: no_include <glm/detail/func_trigonometric.inl>
 // IWYU pragma: no_include <glm/detail/qualifier.hpp>
 // IWYU pragma: no_include <filesystem>
-// IWYU pragma: no_include <span>
 
 namespace
 {
@@ -80,7 +80,7 @@ namespace
         VkDescriptorSetLayoutBinding vertex_uniform_binding{};
         vertex_uniform_binding.binding = 0;
         vertex_uniform_binding.descriptorType =
-            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         vertex_uniform_binding.descriptorCount = 1;
         vertex_uniform_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
@@ -114,7 +114,7 @@ namespace
         vertex_descriptor_write.dstBinding = 0;
         vertex_descriptor_write.dstArrayElement = 0;
         vertex_descriptor_write.descriptorType =
-            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         vertex_descriptor_write.descriptorCount = 1;
         vertex_descriptor_write.pBufferInfo = &vertex_buffer_info;
 
@@ -225,8 +225,8 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
         frame_data& data{frame_data_[i]};
 
         data.vertex_uniform_buffer_ = create_buffer(vulkan_device_,
-            sizeof(transform),
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            sizeof(transform) * meshes_.size(),
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
@@ -277,13 +277,6 @@ void pawn::scene::end_frame() { }
 void pawn::scene::update()
 {
     {
-        static auto start_time{std::chrono::high_resolution_clock::now()};
-        auto const current_time{std::chrono::high_resolution_clock::now()};
-        float const time{
-            std::chrono::duration<float, std::chrono::seconds::period>(
-                current_time - start_time)
-                .count()};
-
         vkrndr::mapped_memory uniform_map{vkrndr::map_memory(vulkan_device_,
             frame_data_[current_frame_].vertex_uniform_buffer_.memory,
             sizeof(transform))};
@@ -292,13 +285,17 @@ void pawn::scene::update()
         constexpr glm::fvec3 up_direction{0, -1, 0};
         constexpr glm::fvec3 camera{0, 0, 0};
 
-        transform const uniform{.model = glm::rotate(meshes_[1].local_matrix,
-                                    time * glm::radians(90.0f),
-                                    glm::fvec3(0.0f, 1.0f, 0.0f)),
-            .view = glm::lookAt(camera, camera + front_face, up_direction),
-            .projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f)};
+        auto transforms{std::span{uniform_map.as<transform>(), meshes_.size()}};
 
-        *uniform_map.as<transform>() = uniform;
+        for (auto const& [mesh, transform_object] :
+            std::views::zip(meshes_, transforms))
+        {
+            transform const uniform{.model = mesh.local_matrix,
+                .view = glm::lookAt(camera, camera + front_face, up_direction),
+                .projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f)};
+
+            transform_object = uniform;
+        }
 
         unmap_memory(vulkan_device_, &uniform_map);
     }

@@ -97,7 +97,6 @@ namespace pawn
         uint32_t current_frame_{};
         size_t vertex_count_{};
         size_t index_count_{};
-        glm::fmat4 local_matrix_{};
 
         std::vector<mesh> meshes_;
     };
