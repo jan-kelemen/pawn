@@ -15,8 +15,11 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/fwd.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
+
+#include <imgui.h>
 
 #include <vulkan/vulkan_core.h>
 
@@ -165,9 +168,9 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
         if (node.mesh)
         {
             auto const& current_mesh{meshes_.emplace_back(vertex_offset,
-                node.mesh->primitives[0].vertices.size(),
+                vkrndr::count_cast(node.mesh->primitives[0].vertices.size()),
                 index_offset,
-                node.mesh->primitives[0].indices.size(),
+                vkrndr::count_cast(node.mesh->primitives[0].indices.size()),
                 local_matrix(node))};
 
             vertex_offset += current_mesh.vertex_count;
@@ -197,8 +200,6 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
     {
         if (node.mesh)
         {
-            auto const& current_mesh{meshes_[i]};
-
             vertices = std::ranges::transform(
                 node.mesh->primitives[0].vertices,
                 vertices,
@@ -220,10 +221,8 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
     unmap_memory(vulkan_device_, &vert_index_map);
 
     frame_data_.resize(renderer->image_count());
-    for (uint32_t i{}; i != frame_data_.size(); ++i)
+    for (frame_data& data : frame_data_)
     {
-        frame_data& data{frame_data_[i]};
-
         data.vertex_uniform_buffer_ = create_buffer(vulkan_device_,
             sizeof(transform) * meshes_.size(),
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -281,20 +280,15 @@ void pawn::scene::update()
             frame_data_[current_frame_].vertex_uniform_buffer_.memory,
             sizeof(transform))};
 
-        constexpr glm::fvec3 front_face{0, 0, -1};
-        constexpr glm::fvec3 up_direction{0, -1, 0};
-        constexpr glm::fvec3 camera{0, 0, 0};
-
         auto transforms{std::span{uniform_map.as<transform>(), meshes_.size()}};
 
-        for (auto const& [mesh, transform_object] :
-            std::views::zip(meshes_, transforms))
+        for (auto const& [transform_index, mesh] :
+            std::views::enumerate(meshes_))
         {
-            transform const uniform{.model = mesh.local_matrix,
-                .view = glm::lookAt(camera, camera + front_face, up_direction),
+            transforms[transform_index] = {.model = mesh.local_matrix,
+                .view =
+                    glm::lookAt(camera_, camera_ + front_face_, up_direction_),
                 .projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f)};
-
-            transform_object = uniform;
         }
 
         unmap_memory(vulkan_device_, &uniform_map);
@@ -371,4 +365,14 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
     }
 }
 
-void pawn::scene::draw_imgui() { }
+void pawn::scene::draw_imgui()
+{
+    ImGui::Begin("Camera");
+    ImGui::SliderFloat3("Camera", glm::value_ptr(camera_), -10.f, 10.f);
+    ImGui::SliderFloat3("Front face", glm::value_ptr(front_face_), -10.f, 10.f);
+    ImGui::SliderFloat3("Up direction",
+        glm::value_ptr(up_direction_),
+        -10.f,
+        10.f);
+    ImGui::End();
+}

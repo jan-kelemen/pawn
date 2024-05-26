@@ -7,6 +7,7 @@
 
 #include <glm/fwd.hpp>
 #include <glm/mat4x4.hpp> // IWYU pragma: keep
+#include <glm/vec3.hpp>
 
 #include <vulkan/vulkan_core.h>
 
@@ -94,11 +95,15 @@ namespace pawn
 
         std::vector<frame_data> frame_data_;
 
-        uint32_t current_frame_{};
         size_t vertex_count_{};
         size_t index_count_{};
-
         std::vector<mesh> meshes_;
+
+        uint32_t current_frame_{};
+
+        glm::fvec3 front_face_{0, 0, -1};
+        glm::fvec3 up_direction_{0, -1, 0};
+        glm::fvec3 camera_{0, 0, 0};
     };
 } // namespace pawn
 

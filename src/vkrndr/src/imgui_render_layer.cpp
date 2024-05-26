@@ -1,5 +1,6 @@
 #include <imgui_render_layer.hpp>
 
+#include <vulkan_commands.hpp>
 #include <vulkan_context.hpp>
 #include <vulkan_device.hpp>
 #include <vulkan_queue.hpp>
@@ -54,6 +55,7 @@ vkrndr::imgui_render_layer::imgui_render_layer(
     : window_{window}
     , device_{device}
     , descriptor_pool_{create_descriptor_pool(device)}
+    , command_buffers_{vulkan_swap_chain::max_frames_in_flight}
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -91,12 +93,18 @@ vkrndr::imgui_render_layer::imgui_render_layer(
     init_info.Subpass = 0;
     init_info.MinImageCount = swap_chain->min_image_count();
     init_info.ImageCount = swap_chain->image_count();
-    init_info.MSAASamples = device->max_msaa_samples;
+    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     init_info.Allocator = VK_NULL_HANDLE;
     init_info.CheckVkResultFn = imgui_vulkan_result_callback;
     init_info.UseDynamicRendering = true;
     init_info.PipelineRenderingCreateInfo = rendering_create_info;
     ImGui_ImplVulkan_Init(&init_info);
+
+    create_command_buffers(device,
+        device->present_queue->command_pool,
+        vulkan_swap_chain::max_frames_in_flight,
+        VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        command_buffers_);
 }
 
 vkrndr::imgui_render_layer::~imgui_render_layer()
@@ -117,10 +125,47 @@ void vkrndr::imgui_render_layer::begin_frame()
     ImGui::NewFrame();
 }
 
-void vkrndr::imgui_render_layer::draw(VkCommandBuffer command_buffer)
+VkCommandBuffer vkrndr::imgui_render_layer::draw(VkImageView target_image,
+    VkExtent2D extent)
 {
+    auto& command_buffer{command_buffers_[current_frame_]};
+
+    check_result(vkResetCommandBuffer(command_buffer, 0));
+
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    check_result(vkBeginCommandBuffer(command_buffer, &begin_info));
+
+    VkRenderingAttachmentInfo color_attachment_info{};
+
+    color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    color_attachment_info.imageLayout =
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    color_attachment_info.imageView = target_image;
+
+    VkRenderingInfo render_info{};
+    render_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+    render_info.renderArea = {{0, 0}, extent};
+    render_info.flags = VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT;
+    render_info.layerCount = 1;
+    render_info.colorAttachmentCount = 1;
+    render_info.pColorAttachments = &color_attachment_info;
+
+    vkCmdBeginRendering(command_buffer, &render_info);
+
     render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command_buffer);
+
+    vkCmdEndRendering(command_buffer);
+
+    check_result(vkEndCommandBuffer(command_buffer));
+
+    current_frame_ =
+        (current_frame_ + 1) % vulkan_swap_chain::max_frames_in_flight;
+
+    return command_buffer;
 }
 
 void vkrndr::imgui_render_layer::end_frame()

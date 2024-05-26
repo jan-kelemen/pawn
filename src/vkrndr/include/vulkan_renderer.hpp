@@ -85,6 +85,15 @@ namespace vkrndr
 
         void cleanup_images();
 
+        [[nodiscard]] VkRenderingAttachmentInfo setup_color_attachment(
+            VkClearValue clear_value,
+            VkImageView target_image,
+            VkImageView intermediate_image);
+
+        [[nodiscard]] VkRenderingAttachmentInfo setup_depth_attachment(
+            VkClearValue clear_value,
+            VkImageView target_image);
+
     private: // Data
         vulkan_window* window_;
         vulkan_context* context_;

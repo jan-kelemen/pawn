@@ -3,6 +3,9 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <cstdint>
+#include <vector>
+
 namespace vkrndr
 {
     class vulkan_window;
@@ -31,7 +34,8 @@ namespace vkrndr
     public: // Interface
         void begin_frame();
 
-        void draw(VkCommandBuffer command_buffer);
+        [[nodiscard]] VkCommandBuffer draw(VkImageView target_image,
+            VkExtent2D extent);
 
         void end_frame();
 
@@ -48,8 +52,10 @@ namespace vkrndr
         vulkan_device* device_;
 
         VkDescriptorPool descriptor_pool_;
+        std::vector<VkCommandBuffer> command_buffers_;
 
         bool frame_rendered_{true};
+        uint32_t current_frame_{};
     };
 } // namespace vkrndr
 

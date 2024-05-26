@@ -229,13 +229,16 @@ void vkrndr::vulkan_renderer::draw(vulkan_scene* scene)
         return;
     }
 
-    auto& command_buffer{command_buffers_[current_frame_]};
+    std::vector<VkCommandBuffer> submit_buffers{
+        command_buffers_[current_frame_]};
 
-    vkResetCommandBuffer(command_buffer, 0);
+    auto& primary_buffer{submit_buffers[0]};
+
+    check_result(vkResetCommandBuffer(primary_buffer, 0));
 
     VkCommandBufferBeginInfo begin_info{};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    check_result(vkBeginCommandBuffer(command_buffer, &begin_info));
+    check_result(vkBeginCommandBuffer(primary_buffer, &begin_info));
 
     VkFormat const format{image_format()};
     VkCommandBufferInheritanceRenderingInfo rendering_inheritance_info{};
@@ -249,48 +252,16 @@ void vkrndr::vulkan_renderer::draw(vulkan_scene* scene)
     inheritance_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
     inheritance_info.pNext = &rendering_inheritance_info;
 
-    wait_for_color_attachment_write(swap_chain_->image(image_index),
-        command_buffer);
-
-    VkRenderingAttachmentInfo color_attachment_info{};
-    color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    color_attachment_info.imageLayout =
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    color_attachment_info.clearValue = scene->clear_color();
-    if (is_multisampled())
-    {
-        color_attachment_info.imageView = color_image_.view;
-        color_attachment_info.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-        color_attachment_info.resolveImageView =
-            swap_chain_->image_view(image_index);
-        color_attachment_info.resolveImageLayout =
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    }
-    else
-    {
-        color_attachment_info.imageView = swap_chain_->image_view(image_index);
-    }
+    VkRenderingAttachmentInfo color_attachment_info{
+        setup_color_attachment(scene->clear_color(),
+            swap_chain_->image_view(image_index),
+            color_image_.view)};
 
     std::optional<VkRenderingAttachmentInfo> depth_attachment_info;
     if (auto* const depth_image{scene->depth_image()})
     {
-        VkRenderingAttachmentInfo depth_info{};
-        depth_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        depth_info.pNext = nullptr;
-        depth_info.imageView = depth_image->view;
-        depth_info.imageLayout =
-            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        depth_info.resolveMode = VK_RESOLVE_MODE_NONE;
-        depth_info.resolveImageView = VK_NULL_HANDLE;
-        depth_info.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depth_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depth_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        depth_info.clearValue = scene->clear_depth();
-
-        depth_attachment_info = depth_info;
-
+        depth_attachment_info =
+            setup_depth_attachment(scene->clear_depth(), depth_image->view);
         rendering_inheritance_info.depthAttachmentFormat = depth_image->format;
     }
 
@@ -306,23 +277,33 @@ void vkrndr::vulkan_renderer::draw(vulkan_scene* scene)
         render_info.pDepthAttachment = &depth_attachment_info.value();
     }
 
-    vkCmdBeginRendering(command_buffer, &render_info);
+    wait_for_color_attachment_write(swap_chain_->image(image_index),
+        primary_buffer);
+
+    vkCmdBeginRendering(primary_buffer, &render_info);
 
     record_command_buffer(inheritance_info,
         scene,
         secondary_buffers_[current_frame_]);
-    vkCmdExecuteCommands(command_buffer,
+    vkCmdExecuteCommands(primary_buffer,
         1,
         &secondary_buffers_[current_frame_]);
 
-    vkCmdEndRendering(command_buffer);
+    vkCmdEndRendering(primary_buffer);
 
     transition_to_present_layout(swap_chain_->image(image_index),
-        command_buffer);
+        primary_buffer);
 
-    check_result(vkEndCommandBuffer(command_buffer));
+    check_result(vkEndCommandBuffer(primary_buffer));
 
-    swap_chain_->submit_command_buffers(std::span{&command_buffer, 1},
+    if (imgui_layer_)
+    {
+        scene->draw_imgui();
+        submit_buffers.push_back(
+            imgui_layer_->draw(swap_chain_->image_view(image_index), extent()));
+    }
+
+    swap_chain_->submit_command_buffers(submit_buffers,
         current_frame_,
         image_index);
 
@@ -486,7 +467,7 @@ void vkrndr::vulkan_renderer::record_command_buffer(
     vulkan_scene* scene,
     VkCommandBuffer& command_buffer)
 {
-    vkResetCommandBuffer(command_buffer, 0);
+    check_result(vkResetCommandBuffer(command_buffer, 0));
 
     VkCommandBufferBeginInfo secondary_begin_info{};
     secondary_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -496,12 +477,6 @@ void vkrndr::vulkan_renderer::record_command_buffer(
     check_result(vkBeginCommandBuffer(command_buffer, &secondary_begin_info));
 
     scene->draw(command_buffer, extent());
-
-    if (imgui_layer_)
-    {
-        scene->draw_imgui();
-        imgui_layer_->draw(command_buffer);
-    }
 
     check_result(vkEndCommandBuffer(command_buffer));
 }
@@ -532,4 +507,53 @@ void vkrndr::vulkan_renderer::recreate()
 void vkrndr::vulkan_renderer::cleanup_images()
 {
     destroy(device_, &color_image_);
+}
+
+VkRenderingAttachmentInfo vkrndr::vulkan_renderer::setup_color_attachment(
+    VkClearValue const clear_value,
+    VkImageView const target_image,
+    VkImageView const intermediate_image)
+{
+    VkRenderingAttachmentInfo color_attachment_info{};
+
+    color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    color_attachment_info.imageLayout =
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    color_attachment_info.clearValue = clear_value;
+    if (is_multisampled())
+    {
+        color_attachment_info.imageView = intermediate_image;
+        color_attachment_info.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+        color_attachment_info.resolveImageView = target_image;
+        color_attachment_info.resolveImageLayout =
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    }
+    else
+    {
+        color_attachment_info.imageView = target_image;
+    }
+
+    return color_attachment_info;
+}
+
+VkRenderingAttachmentInfo vkrndr::vulkan_renderer::setup_depth_attachment(
+    VkClearValue const clear_value,
+    VkImageView const target_image)
+{
+    VkRenderingAttachmentInfo depth_attachment_info{};
+    depth_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    depth_attachment_info.pNext = nullptr;
+    depth_attachment_info.imageView = target_image;
+    depth_attachment_info.imageLayout =
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    depth_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE;
+    depth_attachment_info.resolveImageView = VK_NULL_HANDLE;
+    depth_attachment_info.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depth_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depth_attachment_info.clearValue = clear_value;
+
+    return depth_attachment_info;
 }
