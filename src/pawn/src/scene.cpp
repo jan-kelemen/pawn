@@ -329,10 +329,14 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
         index_offset,
         VK_INDEX_TYPE_UINT32);
 
-    VkViewport const viewport{.x = 0.0f,
-        .y = 0.0f,
-        .width = static_cast<float>(extent.width),
-        .height = static_cast<float>(extent.height),
+    uint32_t const effective_dimension{std::min(extent.width, extent.height)};
+    float const half_width{(extent.width - effective_dimension) / 2.f};
+    float const half_height{(extent.height - effective_dimension) / 2.f};
+
+    VkViewport const viewport{.x = half_width,
+        .y = half_height,
+        .width = static_cast<float>(effective_dimension),
+        .height = static_cast<float>(effective_dimension),
         .minDepth = 0.0f,
         .maxDepth = 1.0f};
     vkCmdSetViewport(command_buffer, 0, 1, &viewport);
