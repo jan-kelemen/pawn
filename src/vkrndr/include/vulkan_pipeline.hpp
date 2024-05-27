@@ -85,7 +85,7 @@ namespace vkrndr
         std::vector<VkVertexInputAttributeDescription> vertex_input_attributes_;
         std::vector<VkDescriptorSetLayout> descriptor_set_layouts_;
         VkSampleCountFlagBits rasterization_samples_{VK_SAMPLE_COUNT_1_BIT};
-        VkCullModeFlags cull_mode_{VK_CULL_MODE_BACK_BIT};
+        VkCullModeFlags cull_mode_{VK_CULL_MODE_NONE};
         VkFrontFace front_face_{VK_FRONT_FACE_COUNTER_CLOCKWISE};
         std::optional<VkPushConstantRange> push_constants_;
         VkFormat depth_format_{};
