@@ -11,6 +11,8 @@
 #include <vulkan_renderer.hpp>
 #include <vulkan_utility.hpp>
 
+#include <cppext_numeric.hpp>
+
 #include <glm/fwd.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -50,6 +52,7 @@ namespace
 
     struct [[nodiscard]] push_constants final
     {
+        glm::fvec4 color;
         int transform_index;
     };
 
@@ -349,22 +352,34 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
         0,
         nullptr);
 
-    for (int i{}; i != static_cast<int>(meshes_.size()); ++i)
+    auto generate_color = [](auto index)
     {
-        push_constants pc{.transform_index = i};
+        if (index == 6)
+        {
+            return glm::fvec4{0.5f, 0.8f, 0.4f, 1.0f};
+        }
+
+        return index % 2 ? glm::fvec4{0.2f, 0.2f, 0.2f, 1.0f}
+                         : glm::fvec4{0.8f, 0.8f, 0.8f, 1.0f};
+    };
+
+    for (auto const& [transform_index, mesh] : std::views::enumerate(meshes_))
+    {
+        push_constants const constants{.color = generate_color(transform_index),
+            .transform_index = cppext::narrow<int>(transform_index)};
 
         vkCmdPushConstants(command_buffer,
             pipeline_->pipeline_layout,
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
             sizeof(push_constants),
-            &pc);
+            &constants);
 
         vkCmdDrawIndexed(command_buffer,
-            meshes_[i].index_count,
+            mesh.index_count,
             1,
-            meshes_[i].index_offset,
-            meshes_[i].vertex_offset,
+            vkrndr::count_cast(mesh.index_offset),
+            mesh.vertex_offset,
             0);
     }
 }

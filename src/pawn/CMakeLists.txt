@@ -14,6 +14,7 @@ target_include_directories(pawn
 
 target_link_libraries(pawn
     PRIVATE
+        cppext
         imgui_impl
         vkrndr
     PRIVATE

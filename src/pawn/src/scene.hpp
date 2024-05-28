@@ -26,6 +26,13 @@ namespace vkrndr
 
 namespace pawn
 {
+    enum class mesh_color
+    {
+        none,
+        white,
+        black
+    };
+
     struct [[nodiscard]] mesh final
     {
         int32_t vertex_offset{};
