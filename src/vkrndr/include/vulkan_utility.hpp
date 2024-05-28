@@ -1,15 +1,15 @@
 #ifndef VKRNDR_VULKAN_UTILITY_INCLUDED
 #define VKRNDR_VULKAN_UTILITY_INCLUDED
 
+#include <cppext_numeric.hpp>
+
 #include <vulkan/vulkan_core.h>
 
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <source_location>
 #include <span>
-#include <utility>
 #include <vector>
 
 namespace vkrndr
@@ -20,8 +20,7 @@ namespace vkrndr
     template<typename T>
     [[nodiscard]] constexpr uint32_t count_cast(T const count)
     {
-        assert(std::in_range<uint32_t>(count));
-        return static_cast<uint32_t>(count);
+        return cppext::narrow<uint32_t>(count);
     }
 
     template<typename T>

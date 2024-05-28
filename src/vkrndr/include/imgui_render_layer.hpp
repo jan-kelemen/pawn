@@ -34,7 +34,8 @@ namespace vkrndr
     public: // Interface
         void begin_frame();
 
-        [[nodiscard]] VkCommandBuffer draw(VkImageView target_image,
+        [[nodiscard]] VkCommandBuffer draw(VkImage target_image,
+            VkImageView target_image_view,
             VkExtent2D extent);
 
         void end_frame();

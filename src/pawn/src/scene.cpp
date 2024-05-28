@@ -16,6 +16,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 
 #include <imgui.h>
 
@@ -23,7 +24,6 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -157,23 +157,19 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
             .with_depth_stencil(depth_buffer_.format)
             .build());
 
-    vkrndr::gltf_model model{renderer->load_model("chess_set_2k.gltf")};
+    vkrndr::gltf_model const model{renderer->load_model("chess_set_2k.gltf")};
 
-    int32_t vertex_offset{};
-    int32_t index_offset{};
     for (auto const& node : model.nodes)
     {
         if (node.mesh)
         {
-            auto const& current_mesh{meshes_.emplace_back(vertex_offset,
+            auto const& current_mesh{meshes_.emplace_back(vertex_count_,
                 vkrndr::count_cast(node.mesh->primitives[0].vertices.size()),
-                index_offset,
+                index_count_,
                 vkrndr::count_cast(node.mesh->primitives[0].indices.size()),
                 local_matrix(node))};
 
-            vertex_offset += current_mesh.vertex_count;
             vertex_count_ += current_mesh.vertex_count;
-            index_offset += current_mesh.index_count;
             index_count_ += current_mesh.index_count;
         }
     }

@@ -79,7 +79,7 @@ namespace vkrndr
         void record_command_buffer(
             VkCommandBufferInheritanceInfo inheritance_info,
             vulkan_scene* scene,
-            VkCommandBuffer& command_buffer);
+            VkCommandBuffer& command_buffer) const;
 
         [[nodiscard]] bool is_multisampled() const;
 
@@ -88,11 +88,11 @@ namespace vkrndr
         [[nodiscard]] VkRenderingAttachmentInfo setup_color_attachment(
             VkClearValue clear_value,
             VkImageView target_image,
-            VkImageView intermediate_image);
+            VkImageView intermediate_image) const;
 
         [[nodiscard]] VkRenderingAttachmentInfo setup_depth_attachment(
             VkClearValue clear_value,
-            VkImageView target_image);
+            VkImageView target_image) const;
 
     private: // Data
         vulkan_window* window_;

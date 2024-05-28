@@ -38,6 +38,12 @@ namespace vkrndr
         VkBuffer buffer,
         VkImage image,
         VkExtent2D extent);
+
+    void wait_for_color_attachment_write(VkImage image,
+        VkCommandBuffer command_buffer);
+
+    void transition_to_present_layout(VkImage image,
+        VkCommandBuffer command_buffer);
 } // namespace vkrndr
 
 #endif // !VKRNDR_VULKAN_COMMANDS_INCLUDED

@@ -60,66 +60,6 @@ namespace
 
         return rv;
     }
-
-    void wait_for_color_attachment_write(VkImage const image,
-        VkCommandBuffer command_buffer)
-    {
-        // Wait for COLOR_ATTACHMENT_OUTPUT instead of TOP/BOTTOM of pipe
-        // to allow for acquisition of the image to finish
-        //
-        // https://github.com/KhronosGroup/Vulkan-ValidationLayers/issues/7193#issuecomment-1875960974
-        VkImageMemoryBarrier2 barrier{};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        barrier.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-        barrier.srcAccessMask = VK_ACCESS_2_NONE;
-        barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        barrier.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-        barrier.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-        barrier.image = image;
-        barrier.subresourceRange = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        };
-
-        VkDependencyInfo dependency{};
-        dependency.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-        dependency.imageMemoryBarrierCount = 1;
-        dependency.pImageMemoryBarriers = &barrier;
-
-        vkCmdPipelineBarrier2(command_buffer, &dependency);
-    }
-
-    void transition_to_present_layout(VkImage const image,
-        VkCommandBuffer command_buffer)
-    {
-        VkImageMemoryBarrier2 barrier{};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-        barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        barrier.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-        barrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-        barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        barrier.dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_2_NONE;
-        barrier.image = image;
-        barrier.subresourceRange = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        };
-
-        VkDependencyInfo dependency{};
-        dependency.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-        dependency.imageMemoryBarrierCount = 1;
-        dependency.pImageMemoryBarriers = &barrier;
-
-        vkCmdPipelineBarrier2(command_buffer, &dependency);
-    }
 } // namespace
 
 vkrndr::vulkan_renderer::vulkan_renderer(vulkan_window* const window,
@@ -232,7 +172,8 @@ void vkrndr::vulkan_renderer::draw(vulkan_scene* scene)
     std::vector<VkCommandBuffer> submit_buffers{
         command_buffers_[current_frame_]};
 
-    auto& primary_buffer{submit_buffers[0]};
+    // NOLINTNEXTLINE(readability-qualified-auto)
+    auto primary_buffer{submit_buffers[0]};
 
     check_result(vkResetCommandBuffer(primary_buffer, 0));
 
@@ -252,7 +193,7 @@ void vkrndr::vulkan_renderer::draw(vulkan_scene* scene)
     inheritance_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
     inheritance_info.pNext = &rendering_inheritance_info;
 
-    VkRenderingAttachmentInfo color_attachment_info{
+    VkRenderingAttachmentInfo const color_attachment_info{
         setup_color_attachment(scene->clear_color(),
             swap_chain_->image_view(image_index),
             color_image_.view)};
@@ -291,17 +232,19 @@ void vkrndr::vulkan_renderer::draw(vulkan_scene* scene)
 
     vkCmdEndRendering(primary_buffer);
 
-    transition_to_present_layout(swap_chain_->image(image_index),
-        primary_buffer);
-
-    check_result(vkEndCommandBuffer(primary_buffer));
-
     if (imgui_layer_)
     {
         scene->draw_imgui();
         submit_buffers.push_back(
-            imgui_layer_->draw(swap_chain_->image_view(image_index), extent()));
+            imgui_layer_->draw(swap_chain_->image(image_index),
+                swap_chain_->image_view(image_index),
+                extent()));
     }
+
+    transition_to_present_layout(swap_chain_->image(image_index),
+        primary_buffer);
+
+    check_result(vkEndCommandBuffer(primary_buffer));
 
     swap_chain_->submit_command_buffers(submit_buffers,
         current_frame_,
@@ -464,8 +407,8 @@ vkrndr::gltf_model vkrndr::vulkan_renderer::load_model(
 
 void vkrndr::vulkan_renderer::record_command_buffer(
     VkCommandBufferInheritanceInfo const inheritance_info,
-    vulkan_scene* scene,
-    VkCommandBuffer& command_buffer)
+    vulkan_scene* const scene,
+    VkCommandBuffer& command_buffer) const
 {
     check_result(vkResetCommandBuffer(command_buffer, 0));
 
@@ -512,7 +455,7 @@ void vkrndr::vulkan_renderer::cleanup_images()
 VkRenderingAttachmentInfo vkrndr::vulkan_renderer::setup_color_attachment(
     VkClearValue const clear_value,
     VkImageView const target_image,
-    VkImageView const intermediate_image)
+    VkImageView const intermediate_image) const
 {
     VkRenderingAttachmentInfo color_attachment_info{};
 
@@ -540,7 +483,7 @@ VkRenderingAttachmentInfo vkrndr::vulkan_renderer::setup_color_attachment(
 
 VkRenderingAttachmentInfo vkrndr::vulkan_renderer::setup_depth_attachment(
     VkClearValue const clear_value,
-    VkImageView const target_image)
+    VkImageView const target_image) const
 {
     VkRenderingAttachmentInfo depth_attachment_info{};
     depth_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;

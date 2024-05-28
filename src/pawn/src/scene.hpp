@@ -7,7 +7,7 @@
 
 #include <glm/fwd.hpp>
 #include <glm/mat4x4.hpp> // IWYU pragma: keep
-#include <glm/vec3.hpp>
+#include <glm/vec3.hpp> // IWYU pragma: keep
 
 #include <vulkan/vulkan_core.h>
 

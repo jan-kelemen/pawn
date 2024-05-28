@@ -57,6 +57,8 @@ target_include_directories(vkrndr
 
 target_link_libraries(vkrndr
     PUBLIC
+        cppext
+    PUBLIC
 		Freetype::Freetype
         imgui::imgui
         vulkan-headers::vulkan-headers

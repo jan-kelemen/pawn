@@ -17,6 +17,8 @@
 #include <cassert>
 #include <utility>
 
+// IWYU pragma: no_include <span>
+
 namespace
 {
     [[nodiscard]] VkDescriptorPool create_descriptor_pool(
@@ -125,7 +127,8 @@ void vkrndr::imgui_render_layer::begin_frame()
     ImGui::NewFrame();
 }
 
-VkCommandBuffer vkrndr::imgui_render_layer::draw(VkImageView target_image,
+VkCommandBuffer vkrndr::imgui_render_layer::draw(VkImage target_image,
+    VkImageView target_image_view,
     VkExtent2D extent)
 {
     auto& command_buffer{command_buffers_[current_frame_]};
@@ -143,7 +146,7 @@ VkCommandBuffer vkrndr::imgui_render_layer::draw(VkImageView target_image,
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    color_attachment_info.imageView = target_image;
+    color_attachment_info.imageView = target_image_view;
 
     VkRenderingInfo render_info{};
     render_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
@@ -153,12 +156,16 @@ VkCommandBuffer vkrndr::imgui_render_layer::draw(VkImageView target_image,
     render_info.colorAttachmentCount = 1;
     render_info.pColorAttachments = &color_attachment_info;
 
+    wait_for_color_attachment_write(target_image, command_buffer);
+
     vkCmdBeginRendering(command_buffer, &render_info);
 
     render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command_buffer);
 
     vkCmdEndRendering(command_buffer);
+
+    transition_to_present_layout(target_image, command_buffer);
 
     check_result(vkEndCommandBuffer(command_buffer));
 
