@@ -263,7 +263,9 @@ void pawn::scene::detach_renderer()
             destroy(vulkan_device_, &data.vertex_uniform_buffer_);
         }
 
-        destroy(vulkan_device_, pipeline_.release());
+        destroy(vulkan_device_, pipeline_.get());
+        pipeline_.reset();
+
         vkDestroyDescriptorSetLayout(vulkan_device_->logical,
             descriptor_set_layout_,
             nullptr);
@@ -373,7 +375,7 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
             return glm::fvec4{0.5f, 0.8f, 0.4f, 1.0f};
         }
 
-        return index % 2 ? glm::fvec4{0.2f, 0.2f, 0.2f, 1.0f}
+        return (index % 2) ? glm::fvec4{0.2f, 0.2f, 0.2f, 1.0f}
                          : glm::fvec4{0.8f, 0.8f, 0.8f, 1.0f};
     };
 

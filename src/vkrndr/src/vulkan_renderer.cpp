@@ -74,6 +74,7 @@ vkrndr::vulkan_renderer::vulkan_renderer(vulkan_window* const window,
     , secondary_buffers_{vulkan_swap_chain::max_frames_in_flight}
     , descriptor_pool_{create_descriptor_pool(device)}
     , font_manager_{std::make_unique<font_manager>()}
+    , gltf_manager_{std::make_unique<gltf_manager>()}
 {
     recreate();
 
