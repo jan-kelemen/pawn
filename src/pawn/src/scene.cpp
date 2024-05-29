@@ -12,6 +12,7 @@
 #include <vulkan_utility.hpp>
 
 #include <cppext_numeric.hpp>
+#include <cppext_pragma_warning.hpp>
 
 #include <glm/fwd.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -52,6 +53,9 @@ namespace
         glm::fmat4 projection;
     };
 
+    DISABLE_WARNING_PUSH
+    DISABLE_STRUCTURE_WAS_PADDED_DUE_TO_ALIGNMENT_SPECIFIER
+
     struct [[nodiscard]] push_constants final
     {
         alignas(16) glm::fvec3 color;
@@ -60,6 +64,8 @@ namespace
         alignas(16) glm::fvec3 light_color;
         int transform_index;
     };
+
+    DISABLE_WARNING_POP
 
     consteval auto binding_description()
     {
@@ -176,9 +182,10 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
     {
         if (node.mesh)
         {
-            auto const& current_mesh{meshes_.emplace_back(vertex_count_,
+            auto const& current_mesh{meshes_.emplace_back(
+                cppext::narrow<int32_t>(vertex_count_),
                 vkrndr::count_cast(node.mesh->primitives[0].vertices.size()),
-                index_count_,
+                cppext::narrow<int32_t>(index_count_),
                 vkrndr::count_cast(node.mesh->primitives[0].indices.size()),
                 local_matrix(node))};
 

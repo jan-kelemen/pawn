@@ -1,6 +1,7 @@
 #include <gltf_manager.hpp>
 
 #include <cppext_numeric.hpp>
+#include <cppext_pragma_warning.hpp>
 
 #include <tinygltf_impl.hpp>
 
@@ -124,9 +125,13 @@ namespace
         }
         case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
         {
+            DISABLE_WARNING_PUSH
+            DISABLE_WARNING_USELESS_CAST
             // NOLINTNEXTLINE
             auto const* const buf{reinterpret_cast<uint8_t const*>(
                 &buffer.data[accessor.byteOffset + view.byteOffset])};
+            DISABLE_WARNING_POP
+
             std::ranges::copy(buf,
                 buf + accessor.count,
                 std::back_inserter(rv));
@@ -232,10 +237,10 @@ vkrndr::gltf_model vkrndr::gltf_manager::load(std::filesystem::path const& path)
                         gltf_vertex const vert{
                             .position = glm::make_vec3(
                                 &position_buffer[vertex * position_stride]),
-                            .normal = glm::normalize(glm::fvec3(normal_buffer
+                            .normal = glm::normalize(normal_buffer
                                     ? glm::make_vec3(&normal_buffer[vertex *
                                           normal_stride])
-                                    : glm::fvec3(0.0f)))};
+                                    : glm::fvec3(0.0f))};
 
                         static_assert(std::is_trivial_v<gltf_vertex>);
                         new_primitive.vertices.push_back(vert);

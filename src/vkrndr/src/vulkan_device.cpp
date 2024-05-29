@@ -5,6 +5,8 @@
 #include <vulkan_swap_chain.hpp>
 #include <vulkan_utility.hpp>
 
+#include <cppext_pragma_warning.hpp>
+
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -23,10 +25,8 @@ namespace
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
 
-#ifndef _MSC_VER
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-#endif // _MSC_VER
+    DISABLE_WARNING_PUSH
+    DISABLE_WARNING_MISSING_FIELD_INITIALIZERS
     constexpr VkPhysicalDeviceFeatures device_features{
         .sampleRateShading = VK_TRUE,
         .samplerAnisotropy = VK_TRUE};
@@ -35,9 +35,7 @@ namespace
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
         .synchronization2 = VK_TRUE,
         .dynamicRendering = VK_TRUE};
-#ifndef _MSC_VER
-#pragma GCC diagnostic pop
-#endif // !_MSC_VER
+    DISABLE_WARNING_POP
 
     [[nodiscard]] bool extensions_supported(VkPhysicalDevice device)
     {
