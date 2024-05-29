@@ -16,6 +16,7 @@ namespace vkrndr
     struct [[nodiscard]] gltf_vertex final
     {
         glm::fvec3 position;
+        glm::fvec3 normal;
     };
 
     struct [[nodiscard]] gltf_primitive final

@@ -26,7 +26,7 @@ namespace vkrndr
 
 namespace pawn
 {
-    enum class mesh_color
+    enum class mesh_color : uint8_t
     {
         none,
         white,
@@ -113,6 +113,9 @@ namespace pawn
         glm::fvec3 up_direction_{0, -1, 0};
         glm::fvec3 camera_{0, 0, 0};
         std::array<float, 3> projection_{0.5f, -0.4f, 0.4f};
+
+        glm::fvec3 light_position_{1.0f, 1.0f, 1.0f};
+        glm::fvec3 light_color_{0.8f, 0.8f, 0.8f};
     };
 } // namespace pawn
 

@@ -35,12 +35,14 @@
 // IWYU pragma: no_include <glm/detail/func_trigonometric.inl>
 // IWYU pragma: no_include <glm/detail/qualifier.hpp>
 // IWYU pragma: no_include <filesystem>
+// IWYU pragma: no_include <functional>
 
 namespace
 {
     struct [[nodiscard]] vertex final
     {
         glm::fvec4 position;
+        glm::fvec3 normal;
     };
 
     struct [[nodiscard]] transform final
@@ -52,7 +54,10 @@ namespace
 
     struct [[nodiscard]] push_constants final
     {
-        glm::fvec4 color;
+        alignas(16) glm::fvec3 color;
+        alignas(16) glm::fvec3 camera;
+        alignas(16) glm::fvec3 light_position;
+        alignas(16) glm::fvec3 light_color;
         int transform_index;
     };
 
@@ -73,7 +78,11 @@ namespace
             VkVertexInputAttributeDescription{.location = 0,
                 .binding = 0,
                 .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-                .offset = offsetof(vertex, position)}};
+                .offset = offsetof(vertex, position)},
+            VkVertexInputAttributeDescription{.location = 1,
+                .binding = 0,
+                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = offsetof(vertex, normal)}};
 
         return descriptions;
     }
@@ -154,7 +163,8 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
             .with_rasterization_samples(vulkan_device_->max_msaa_samples)
             .add_vertex_input(binding_description(), attribute_descriptions())
             .add_descriptor_set_layout(descriptor_set_layout_)
-            .with_push_constants({.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+            .with_push_constants({.stageFlags = VK_SHADER_STAGE_VERTEX_BIT |
+                    VK_SHADER_STAGE_FRAGMENT_BIT,
                 .offset = 0,
                 .size = sizeof(push_constants)})
             .with_depth_stencil(depth_buffer_.format)
@@ -192,26 +202,21 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
     vertex* vertices{vert_index_map.as<vertex>()};
     uint32_t* indices{vert_index_map.as<uint32_t>(vertices_size)};
 
-    size_t i{};
     for (auto const& node : model.nodes)
     {
         if (node.mesh)
         {
-            vertices = std::ranges::transform(
-                node.mesh->primitives[0].vertices,
+            vertices = std::ranges::transform(node.mesh->primitives[0].vertices,
                 vertices,
-                [&i](glm::fvec3 const& vec) {
-                    return vertex{
-                        .position = glm::fvec4(vec, static_cast<float>(i))};
-                },
-                &vkrndr::gltf_vertex::position)
-                           .out;
+                [&](vkrndr::gltf_vertex const& vert)
+                {
+                    return vertex{.position = glm::fvec4(vert.position, 0.0f),
+                        .normal = vert.normal};
+                }).out;
 
             indices =
                 std::ranges::copy(node.mesh->primitives[0].indices, indices)
                     .out;
-
-            ++i;
         }
     }
 
@@ -277,22 +282,22 @@ void pawn::scene::update()
             frame_data_[current_frame_].vertex_uniform_buffer_.memory,
             sizeof(transform))};
 
-        auto transforms{std::span{uniform_map.as<transform>(), meshes_.size()}};
-
-        for (auto const& [transform_index, mesh] :
-            std::views::enumerate(meshes_))
-        {
-            // https://computergraphics.stackexchange.com/a/13809
-            transforms[transform_index] = {.model = mesh.local_matrix,
-                .view =
-                    glm::lookAt(camera_, camera_ + front_face_, up_direction_),
-                .projection = glm::orthoRH_ZO(camera_.x - projection_[0],
-                    camera_.x + projection_[0],
-                    camera_.y - projection_[0],
-                    camera_.y + projection_[0],
-                    camera_.z + projection_[1],
-                    camera_.z + projection_[2])};
-        }
+        std::ranges::transform(meshes_,
+            uniform_map.as<transform>(),
+            [&](auto const& mesh)
+            {
+                // https://computergraphics.stackexchange.com/a/13809
+                return transform{.model = mesh.local_matrix,
+                    .view = glm::lookAt(camera_,
+                        camera_ + front_face_,
+                        up_direction_),
+                    .projection = glm::orthoRH_ZO(camera_.x - projection_[0],
+                        camera_.x + projection_[0],
+                        camera_.y - projection_[0],
+                        camera_.y + projection_[0],
+                        camera_.z + projection_[1],
+                        camera_.z + projection_[2])};
+            });
 
         unmap_memory(vulkan_device_, &uniform_map);
     }
@@ -329,13 +334,15 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
         VK_INDEX_TYPE_UINT32);
 
     uint32_t const effective_dimension{std::min(extent.width, extent.height)};
-    float const half_width{(extent.width - effective_dimension) / 2.f};
-    float const half_height{(extent.height - effective_dimension) / 2.f};
+    float const half_width{
+        cppext::as_fp(extent.width - effective_dimension) / 2};
+    float const half_height{
+        cppext::as_fp(extent.height - effective_dimension) / 2};
 
     VkViewport const viewport{.x = half_width,
         .y = half_height,
-        .width = static_cast<float>(effective_dimension),
-        .height = static_cast<float>(effective_dimension),
+        .width = cppext::as_fp(effective_dimension),
+        .height = cppext::as_fp(effective_dimension),
         .minDepth = 0.0f,
         .maxDepth = 1.0f};
     vkCmdSetViewport(command_buffer, 0, 1, &viewport);
@@ -366,11 +373,14 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
     for (auto const& [transform_index, mesh] : std::views::enumerate(meshes_))
     {
         push_constants const constants{.color = generate_color(transform_index),
+            .camera = camera_,
+            .light_position = light_position_,
+            .light_color = light_color_,
             .transform_index = cppext::narrow<int>(transform_index)};
 
         vkCmdPushConstants(command_buffer,
             pipeline_->pipeline_layout,
-            VK_SHADER_STAGE_VERTEX_BIT,
+            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             0,
             sizeof(push_constants),
             &constants);
@@ -396,6 +406,7 @@ void pawn::scene::draw_imgui()
     ImGui::End();
 
     ImGui::Begin("Projection");
+    // NOLINTNEXTLINE(readability-container-data-pointer)
     ImGui::SliderFloat("Zoom", &projection_[0], 0, 10.f);
     ImGui::SliderFloat("Near", &projection_[1], -10.f, 10.f);
     ImGui::SliderFloat("Far", &projection_[2], -10.f, 10.f);
@@ -411,5 +422,13 @@ void pawn::scene::draw_imgui()
     ImGui::Value("Center x", (camera_ + front_face_).x);
     ImGui::Value("Center y", (camera_ + front_face_).y);
     ImGui::Value("Center z", (camera_ + front_face_).z);
+    ImGui::End();
+
+    ImGui::Begin("Light");
+    ImGui::SliderFloat3("Position",
+        glm::value_ptr(light_position_),
+        -1.0f,
+        1.0f);
+    ImGui::SliderFloat3("Color", glm::value_ptr(light_color_), 0.0f, 1.0f);
     ImGui::End();
 }
