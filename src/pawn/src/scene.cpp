@@ -1,6 +1,7 @@
 #include <scene.hpp>
 
 #include <gltf_manager.hpp>
+#include <utility>
 #include <vulkan_buffer.hpp>
 #include <vulkan_depth_buffer.hpp>
 #include <vulkan_descriptors.hpp>
@@ -15,7 +16,7 @@
 #include <cppext_pragma_warning.hpp>
 
 #include <glm/fwd.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_transform.hpp> // IWYU pragma: keep
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
@@ -27,11 +28,14 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <optional>
 #include <ranges>
 #include <span>
+#include <string_view>
 
 // IWYU pragma: no_include <glm/detail/func_trigonometric.inl>
 // IWYU pragma: no_include <glm/detail/qualifier.hpp>
@@ -40,14 +44,6 @@
 
 namespace
 {
-    constexpr std::array node_names{"piece_rook_white_01",
-        "piece_pawn_white_01",
-        "piece_bishop_white_01",
-        "piece_queen_white",
-        "piece_king_white",
-        "piece_knight_white_01",
-        "board"};
-
     struct [[nodiscard]] vertex final
     {
         glm::fvec4 position;
@@ -153,6 +149,16 @@ namespace
             0,
             nullptr);
     }
+
+    [[nodiscard]] constexpr glm::fvec3 calculate_position(
+        pawn::board_piece piece)
+    {
+        constexpr float column_center{0.028944039717316628};
+        return glm::fvec3{
+            column_center + (float(piece.row) - 4) * column_center * 2,
+            0.017392655834555626,
+            column_center + (float(piece.column) - 4) * column_center * 2};
+    }
 } // namespace
 
 pawn::scene::scene() = default;
@@ -184,25 +190,44 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
             .with_depth_stencil(depth_buffer_.format)
             .build());
 
-    auto const with_name = [](vkrndr::gltf_node const& node)
-    { return std::ranges::contains(node_names, node.name); };
+    using namespace std::string_view_literals;
+    constexpr std::array load_nodes{
+        std::pair{piece_type::rook, "piece_rook_white_01"sv},
+        std::pair{piece_type::pawn, "piece_pawn_white_01"sv},
+        std::pair{piece_type::bishop, "piece_bishop_white_01"sv},
+        std::pair{piece_type::queen, "piece_queen_white"sv},
+        std::pair{piece_type::king, "piece_king_white"sv},
+        std::pair{piece_type::knight, "piece_knight_white_01"sv},
+        std::pair{piece_type::board, "board"sv}};
 
     vkrndr::gltf_model const model{renderer->load_model("chess_set_2k.gltf")};
 
-    for (auto const& node : model.nodes | std::views::filter(with_name))
-    {
-        if (node.mesh)
-        {
-            auto const& current_mesh{meshes_.emplace_back(
-                cppext::narrow<int32_t>(vertex_count_),
-                vkrndr::count_cast(node.mesh->primitives[0].vertices.size()),
-                cppext::narrow<int32_t>(index_count_),
-                vkrndr::count_cast(node.mesh->primitives[0].indices.size()),
-                local_matrix(node))};
+    std::vector<vkrndr::gltf_mesh const*> load_meshes;
+    load_meshes.reserve(load_nodes.size());
 
-            vertex_count_ += current_mesh.vertex_count;
-            index_count_ += current_mesh.index_count;
+    for (auto const& [type, name] : load_nodes)
+    {
+        auto const it{std::ranges::find_if(
+            model.nodes,
+            [&name](auto const& node_name) { return name == node_name; },
+            &vkrndr::gltf_node::name)};
+        if (it == std::cend(model.nodes))
+        {
+            continue;
         }
+
+        auto const& model_mesh{*it->mesh};
+        load_meshes.push_back(&model_mesh);
+
+        auto const& current_mesh{meshes_.emplace_back(type,
+            cppext::narrow<int32_t>(vertex_count_),
+            vkrndr::count_cast(model_mesh.primitives[0].vertices.size()),
+            cppext::narrow<int32_t>(index_count_),
+            vkrndr::count_cast(model_mesh.primitives[0].indices.size()),
+            local_matrix(*it))};
+
+        vertex_count_ += current_mesh.vertex_count;
+        index_count_ += current_mesh.index_count;
     }
 
     size_t const vertices_size{vertex_count_ * sizeof(vertex)};
@@ -220,22 +245,17 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
     vertex* vertices{vert_index_map.as<vertex>()};
     uint32_t* indices{vert_index_map.as<uint32_t>(vertices_size)};
 
-    for (auto const& node : model.nodes | std::views::filter(with_name))
+    for (auto const& mesh : load_meshes)
     {
-        if (node.mesh)
-        {
-            vertices = std::ranges::transform(node.mesh->primitives[0].vertices,
-                vertices,
-                [&](vkrndr::gltf_vertex const& vert)
-                {
-                    return vertex{.position = glm::fvec4(vert.position, 0.0f),
-                        .normal = vert.normal};
-                }).out;
+        vertices = std::ranges::transform(mesh->primitives[0].vertices,
+            vertices,
+            [&](vkrndr::gltf_vertex const& vert)
+            {
+                return vertex{.position = glm::fvec4(vert.position, 0.0f),
+                    .normal = vert.normal};
+            }).out;
 
-            indices =
-                std::ranges::copy(node.mesh->primitives[0].indices, indices)
-                    .out;
-        }
+        indices = std::ranges::copy(mesh->primitives[0].indices, indices).out;
     }
 
     unmap_memory(vulkan_device_, &vert_index_map);
@@ -244,7 +264,7 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
     for (frame_data& data : frame_data_)
     {
         data.vertex_uniform_buffer_ = create_buffer(vulkan_device_,
-            sizeof(transform) * meshes_.size(),
+            sizeof(transform) * draw_meshes_.size(),
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -258,6 +278,8 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
             data.descriptor_set_,
             data.vertex_uniform_buffer_.buffer);
     }
+
+    draw_meshes_[0] = to_board_peice(0, 0, mesh_color::none, piece_type::board);
 }
 
 void pawn::scene::detach_renderer()
@@ -290,10 +312,16 @@ void pawn::scene::detach_renderer()
 
 void pawn::scene::begin_frame()
 {
+    used_pieces_ = 1;
     current_frame_ = (current_frame_ + 1) % vulkan_renderer_->image_count();
 }
 
 void pawn::scene::end_frame() { }
+
+void pawn::scene::add_piece(board_piece piece)
+{
+    draw_meshes_[used_pieces_++] = piece;
+}
 
 void pawn::scene::update()
 {
@@ -302,21 +330,41 @@ void pawn::scene::update()
             frame_data_[current_frame_].vertex_uniform_buffer_.memory,
             sizeof(transform))};
 
-        std::ranges::transform(meshes_,
+        auto const view_matrix{
+            glm::lookAt(camera_, camera_ + front_face_, up_direction_)};
+
+        // https://computergraphics.stackexchange.com/a/13809
+        auto const projection_matrix{glm::orthoRH_ZO(camera_.x - projection_[0],
+            camera_.x + projection_[0],
+            camera_.y - projection_[0],
+            camera_.y + projection_[0],
+            camera_.z + projection_[1],
+            camera_.z + projection_[2])};
+
+        std::ranges::transform(draw_meshes_ | std::views::take(used_pieces_),
             uniform_map.as<transform>(),
-            [&](auto const& mesh)
+            [&, this](auto const& draw_mesh)
             {
-                // https://computergraphics.stackexchange.com/a/13809
-                return transform{.model = mesh.local_matrix,
-                    .view = glm::lookAt(camera_,
-                        camera_ + front_face_,
-                        up_direction_),
-                    .projection = glm::orthoRH_ZO(camera_.x - projection_[0],
-                        camera_.x + projection_[0],
-                        camera_.y - projection_[0],
-                        camera_.y + projection_[0],
-                        camera_.z + projection_[1],
-                        camera_.z + projection_[2])};
+                auto const it{std::ranges::find_if(
+                    meshes_,
+                    [&draw_mesh](auto const type)
+                    { return type == draw_mesh.type; },
+                    &mesh::type)};
+                assert(it != std::cend(meshes_));
+
+                auto const position{calculate_position(draw_mesh)};
+                auto model_matrix{it->local_matrix};
+
+                if (draw_mesh.type != piece_type::board)
+                {
+                    // Override translation component to real board position
+                    model_matrix[3][0] = position.x;
+                    model_matrix[3][2] = position.z;
+                }
+
+                return transform{.model = model_matrix,
+                    .view = view_matrix,
+                    .projection = projection_matrix};
             });
 
         unmap_memory(vulkan_device_, &uniform_map);
@@ -379,20 +427,22 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
         0,
         nullptr);
 
-    auto generate_color = [](auto index)
+    auto generate_color = [](board_piece draw_mesh)
     {
-        if (index == 6)
+        if (draw_mesh.type == piece_type::board)
         {
             return glm::fvec4{0.5f, 0.8f, 0.4f, 1.0f};
         }
 
-        return (index % 2) ? glm::fvec4{0.2f, 0.2f, 0.2f, 1.0f}
-                           : glm::fvec4{0.8f, 0.8f, 0.8f, 1.0f};
+        return (draw_mesh.color == std::to_underlying(mesh_color::black))
+            ? glm::fvec4{0.2f, 0.2f, 0.2f, 1.0f}
+            : glm::fvec4{0.8f, 0.8f, 0.8f, 1.0f};
     };
 
-    for (auto const& [transform_index, mesh] : std::views::enumerate(meshes_))
+    for (auto const& [transform_index, draw_mesh] :
+        draw_meshes_ | std::views::take(used_pieces_) | std::views::enumerate)
     {
-        push_constants const constants{.color = generate_color(transform_index),
+        push_constants const constants{.color = generate_color(draw_mesh),
             .camera = camera_,
             .light_position = light_position_,
             .light_color = light_color_,
@@ -405,11 +455,17 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
             sizeof(push_constants),
             &constants);
 
+        auto const it{std::ranges::find_if(
+            meshes_,
+            [&draw_mesh](auto const& type) { return draw_mesh.type == type; },
+            &mesh::type)};
+        assert(it != std::cend(meshes_));
+
         vkCmdDrawIndexed(command_buffer,
-            mesh.index_count,
+            it->index_count,
             1,
-            vkrndr::count_cast(mesh.index_offset),
-            mesh.vertex_offset,
+            vkrndr::count_cast(it->index_offset),
+            it->vertex_offset,
             0);
     }
 }

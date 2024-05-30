@@ -1,6 +1,7 @@
 #ifndef PAWN_SCENE_INLCUDED
 #define PAWN_SCENE_INLCUDED
 
+#include <utility>
 #include <vulkan_buffer.hpp>
 #include <vulkan_image.hpp>
 #include <vulkan_scene.hpp>
@@ -26,6 +27,25 @@ namespace vkrndr
 
 namespace pawn
 {
+    enum class piece_type : uint8_t
+    {
+        rook,
+        knight,
+        bishop,
+        queen,
+        king,
+        pawn,
+        board
+    };
+
+    struct [[nodiscard]] board_piece final
+    {
+        uint8_t row : 3;
+        uint8_t column : 3;
+        uint8_t color : 2;
+        piece_type type;
+    };
+
     enum class mesh_color : uint8_t
     {
         none,
@@ -33,8 +53,17 @@ namespace pawn
         black
     };
 
+    [[nodiscard]] constexpr board_piece to_board_peice(uint8_t const row,
+        uint8_t const column,
+        mesh_color const color,
+        piece_type const type)
+    {
+        return {row, column, std::to_underlying(color), type};
+    }
+
     struct [[nodiscard]] mesh final
     {
+        piece_type type{};
         int32_t vertex_offset{};
         uint32_t vertex_count{};
         int32_t index_offset{};
@@ -63,6 +92,8 @@ namespace pawn
         void begin_frame();
 
         void end_frame();
+
+        void add_piece(board_piece piece);
 
         void update();
 
@@ -116,6 +147,9 @@ namespace pawn
 
         glm::fvec3 light_position_{1.0f, 1.0f, 1.0f};
         glm::fvec3 light_color_{0.8f, 0.8f, 0.8f};
+
+        uint8_t used_pieces_{};
+        std::array<board_piece, 64 + 1> draw_meshes_{};
     };
 } // namespace pawn
 
