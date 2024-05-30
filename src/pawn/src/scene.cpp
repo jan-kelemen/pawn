@@ -354,11 +354,19 @@ void pawn::scene::update()
                 auto const position{calculate_position(draw_mesh)};
                 auto model_matrix{it->local_matrix};
 
+                // Override translation component to real board position
                 if (draw_mesh.type != piece_type::board)
                 {
-                    // Override translation component to real board position
                     model_matrix[3][0] = position.x;
                     model_matrix[3][2] = position.z;
+                }
+
+                // Rotate black pieces toward center of board
+                if (draw_mesh.color == std::to_underlying(mesh_color::black))
+                {
+                    model_matrix = glm::rotate(model_matrix,
+                        glm::radians(180.0f),
+                        glm::fvec3(0, 1, 0));
                 }
 
                 return transform{.model = model_matrix,

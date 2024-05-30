@@ -30,8 +30,7 @@ void main() {
     gl_Position = transform.projection * transform.view * transform.model * vec4(inPosition.xyz, 1.0);
     outFragmentPosition = vec3(transform.model * vec4(inPosition.xyz, 1.0));
 
-    float colorOff = inPosition.y * 5;
-    outColor = vec3(pushConsts.color.xyz); // + colorOff, pushConsts.color.y + colorOff, pushConsts.color.z + colorOff);
+    outColor = vec3(pushConsts.color.xyz); 
     outNormal = inNormal;
 }
  
