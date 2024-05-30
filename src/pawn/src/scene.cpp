@@ -58,7 +58,7 @@ namespace
     };
 
     DISABLE_WARNING_PUSH
-    DISABLE_STRUCTURE_WAS_PADDED_DUE_TO_ALIGNMENT_SPECIFIER
+    DISABLE_WARNING_STRUCTURE_WAS_PADDED_DUE_TO_ALIGNMENT_SPECIFIER
 
     struct [[nodiscard]] push_constants final
     {
@@ -153,11 +153,10 @@ namespace
     [[nodiscard]] constexpr glm::fvec3 calculate_position(
         pawn::board_piece piece)
     {
-        constexpr float column_center{0.028944039717316628};
-        return glm::fvec3{
-            column_center + (float(piece.row) - 4) * column_center * 2,
-            0.017392655834555626,
-            column_center + (float(piece.column) - 4) * column_center * 2};
+        constexpr float center{0.028944039717316628};
+        return glm::fvec3{center + (float(piece.column) - 4) * center * 2,
+            0,
+            center + (float(piece.row) - 4) * center * 2};
     }
 } // namespace
 

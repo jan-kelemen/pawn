@@ -1,10 +1,10 @@
 #ifndef PAWN_SCENE_INLCUDED
 #define PAWN_SCENE_INLCUDED
-
-#include <utility>
 #include <vulkan_buffer.hpp>
 #include <vulkan_image.hpp>
 #include <vulkan_scene.hpp>
+
+#include <cppext_pragma_warning.hpp>
 
 #include <glm/fwd.hpp>
 #include <glm/mat4x4.hpp> // IWYU pragma: keep
@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace vkrndr
@@ -58,7 +59,10 @@ namespace pawn
         mesh_color const color,
         piece_type const type)
     {
+        DISABLE_WARNING_PUSH
+        DISABLE_WARNING_CONVERSION
         return {row, column, std::to_underlying(color), type};
+        DISABLE_WARNING_POP
     }
 
     struct [[nodiscard]] mesh final
