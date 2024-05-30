@@ -40,6 +40,14 @@
 
 namespace
 {
+    constexpr std::array node_names{"piece_rook_white_01",
+        "piece_pawn_white_01",
+        "piece_bishop_white_01",
+        "piece_queen_white",
+        "piece_king_white",
+        "piece_knight_white_01",
+        "board"};
+
     struct [[nodiscard]] vertex final
     {
         glm::fvec4 position;
@@ -176,9 +184,12 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
             .with_depth_stencil(depth_buffer_.format)
             .build());
 
+    auto const with_name = [](vkrndr::gltf_node const& node)
+    { return std::ranges::contains(node_names, node.name); };
+
     vkrndr::gltf_model const model{renderer->load_model("chess_set_2k.gltf")};
 
-    for (auto const& node : model.nodes)
+    for (auto const& node : model.nodes | std::views::filter(with_name))
     {
         if (node.mesh)
         {
@@ -209,7 +220,7 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
     vertex* vertices{vert_index_map.as<vertex>()};
     uint32_t* indices{vert_index_map.as<uint32_t>(vertices_size)};
 
-    for (auto const& node : model.nodes)
+    for (auto const& node : model.nodes | std::views::filter(with_name))
     {
         if (node.mesh)
         {
@@ -376,7 +387,7 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
         }
 
         return (index % 2) ? glm::fvec4{0.2f, 0.2f, 0.2f, 1.0f}
-                         : glm::fvec4{0.8f, 0.8f, 0.8f, 1.0f};
+                           : glm::fvec4{0.8f, 0.8f, 0.8f, 1.0f};
     };
 
     for (auto const& [transform_index, mesh] : std::views::enumerate(meshes_))

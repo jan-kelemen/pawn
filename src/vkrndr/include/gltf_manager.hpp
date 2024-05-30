@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace vkrndr
@@ -32,6 +33,7 @@ namespace vkrndr
 
     struct [[nodiscard]] gltf_node final
     {
+        std::string name;
         std::optional<gltf_mesh> mesh;
         glm::fvec3 translation{0.0f};
         glm::fvec3 scale{1.0f};

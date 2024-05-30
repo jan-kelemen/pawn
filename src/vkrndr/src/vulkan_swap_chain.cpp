@@ -41,7 +41,7 @@ namespace
     [[nodiscard]] VkPresentModeKHR choose_swap_present_mode(
         std::span<VkPresentModeKHR const> available_present_modes)
     {
-        constexpr auto preferred_mode{VK_PRESENT_MODE_MAILBOX_KHR};
+        constexpr auto preferred_mode{VK_PRESENT_MODE_IMMEDIATE_KHR};
         return std::ranges::find(available_present_modes, preferred_mode) !=
                 available_present_modes.cend()
             ? preferred_mode

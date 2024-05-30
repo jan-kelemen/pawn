@@ -193,7 +193,11 @@ vkrndr::gltf_model vkrndr::gltf_manager::load(std::filesystem::path const& path)
     gltf_model rv;
     for (tinygltf::Node const& node : model.nodes)
     {
-        gltf_node new_node;
+        DISABLE_WARNING_PUSH
+        DISABLE_WARNING_MISSING_FIELD_INITIALIZERS
+        gltf_node new_node{.name = node.name};
+        DISABLE_WARNING_POP
+
         load_transform(node, new_node);
 
         if (node.mesh != -1)
