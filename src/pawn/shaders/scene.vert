@@ -29,8 +29,8 @@ void main() {
     Transform transform = transformBuffer.transforms[pushConsts.transformIndex];
     gl_Position = transform.projection * transform.view * transform.model * vec4(inPosition.xyz, 1.0);
     outFragmentPosition = vec3(transform.model * vec4(inPosition.xyz, 1.0));
+    outNormal = vec3(transform.model * vec4(inNormal.xyz, 1.0));
 
     outColor = vec3(pushConsts.color.xyz); 
-    outNormal = inNormal;
 }
  
