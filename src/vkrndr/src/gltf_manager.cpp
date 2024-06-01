@@ -1,5 +1,8 @@
 #include <gltf_manager.hpp>
 
+#include <vulkan_renderer.hpp>
+#include <vulkan_utility.hpp>
+
 #include <cppext_numeric.hpp>
 #include <cppext_pragma_warning.hpp>
 
@@ -71,8 +74,10 @@ namespace
     };
 
     template<typename TargetType>
-    constexpr primitive_buffer<TargetType>
-    buffer_for(tinygltf::Model const& model, int const accessor_index)
+    constexpr primitive_buffer<TargetType> buffer_for(
+        tinygltf::Model const& model,
+        int const accessor_index,
+        int type = TINYGLTF_TYPE_VEC3)
     {
         auto const& [accessor, buffer, view] = data_for(model, accessor_index);
 
@@ -86,7 +91,7 @@ namespace
 
         rv.stride = byte_stride
             ? byte_stride / sizeof(float)
-            : size_cast(tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3));
+            : size_cast(tinygltf::GetNumComponentsInType(type));
 
         rv.count = accessor.count;
 
@@ -169,9 +174,60 @@ namespace
             new_node.matrix = glm::make_mat4x4(node.matrix.data());
         }
     }
+
+    void load_textures(vkrndr::vulkan_renderer* renderer,
+        tinygltf::Model& model,
+        vkrndr::gltf_model& new_model)
+    {
+        for (tinygltf::Texture& tex : model.textures)
+        {
+            int const source{tex.source};
+            tinygltf::Image const& image{model.images[source]};
+
+            vkrndr::vulkan_image texture_image{
+                renderer->transfer_image(vkrndr::as_bytes(image.image),
+                    {cppext::narrow<uint32_t>(image.width),
+                        {cppext::narrow<uint32_t>(image.height)}})};
+
+            new_model.textures.emplace_back(texture_image);
+        }
+    }
+
+    void load_materials(tinygltf::Model const& model,
+        vkrndr::gltf_model& new_model)
+    {
+        for (tinygltf::Material const& material : model.materials)
+        {
+            vkrndr::gltf_material new_material;
+
+            tinygltf::TextureInfo const& texture{
+                material.pbrMetallicRoughness.baseColorTexture};
+
+            new_material.base_color_texture =
+                &new_model.textures[texture.index];
+            new_material.base_color_coord_set =
+                cppext::narrow<uint8_t>(texture.texCoord);
+
+            new_material.index =
+                cppext::narrow<uint32_t>(new_model.materials.size());
+            new_model.materials.push_back(new_material);
+        }
+
+        // Push a default material at the end of the list for meshes with no
+        // material assigned
+        new_model.materials.emplace_back();
+    }
 } // namespace
 
-vkrndr::gltf_model vkrndr::gltf_manager::load(std::filesystem::path const& path)
+vkrndr::gltf_manager::gltf_manager(vulkan_renderer* renderer)
+    : renderer_{renderer}
+{
+}
+
+vkrndr::gltf_manager::~gltf_manager() = default;
+
+std::unique_ptr<vkrndr::gltf_model> vkrndr::gltf_manager::load(
+    std::filesystem::path const& path)
 {
     tinygltf::TinyGLTF context;
 
@@ -190,7 +246,11 @@ vkrndr::gltf_model vkrndr::gltf_manager::load(std::filesystem::path const& path)
             fmt::format("Model at path {} not loaded", path)};
     }
 
-    gltf_model rv;
+    auto rv{std::make_unique<gltf_model>()};
+
+    load_textures(renderer_, model, *rv);
+    load_materials(model, *rv);
+
     for (tinygltf::Node const& node : model.nodes)
     {
         DISABLE_WARNING_PUSH
@@ -213,10 +273,13 @@ vkrndr::gltf_model vkrndr::gltf_manager::load(std::filesystem::path const& path)
                 {
                     float const* position_buffer{nullptr};
                     float const* normal_buffer{nullptr};
+                    float const* texture_buffer{nullptr};
+
                     size_t vertex_count{};
 
                     size_t position_stride{};
                     size_t normal_stride{};
+                    size_t texture_stride{};
 
                     // Get buffer data for vertex normals
                     if (auto const it{primitive.attributes.find("POSITION")};
@@ -236,6 +299,17 @@ vkrndr::gltf_model vkrndr::gltf_manager::load(std::filesystem::path const& path)
                             buffer_for<float>(model, it->second);
                     }
 
+                    if (auto const it{primitive.attributes.find("TEXCOORD_0")};
+                        it != primitive.attributes.end())
+                    {
+                        size_t texcoord_count; // NOLINT
+                        std::tie(texture_buffer,
+                            texture_stride,
+                            texcoord_count) = buffer_for<float>(model,
+                            it->second,
+                            TINYGLTF_TYPE_VEC2);
+                    }
+
                     for (size_t vertex{}; vertex != vertex_count; ++vertex)
                     {
                         gltf_vertex const vert{
@@ -244,7 +318,11 @@ vkrndr::gltf_model vkrndr::gltf_manager::load(std::filesystem::path const& path)
                             .normal = glm::normalize(normal_buffer
                                     ? glm::make_vec3(&normal_buffer[vertex *
                                           normal_stride])
-                                    : glm::fvec3(0.0f))};
+                                    : glm::fvec3(0.0f)),
+                            .texture_coordinate = texture_buffer
+                                ? glm::make_vec2(
+                                      &texture_buffer[vertex * texture_stride])
+                                : glm::fvec2(0.0f)};
 
                         static_assert(std::is_trivial_v<gltf_vertex>);
                         new_primitive.vertices.push_back(vert);
@@ -257,7 +335,7 @@ vkrndr::gltf_model vkrndr::gltf_manager::load(std::filesystem::path const& path)
             }
             new_node.mesh = std::move(new_mesh);
         }
-        rv.nodes.push_back(std::move(new_node));
+        rv->nodes.push_back(std::move(new_node));
     }
     return rv;
 }

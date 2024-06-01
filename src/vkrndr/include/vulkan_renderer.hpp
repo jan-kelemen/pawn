@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <span>
 #include <vector>
 
 namespace vkrndr
@@ -62,10 +63,14 @@ namespace vkrndr
         [[nodiscard]] vulkan_image load_texture(
             std::filesystem::path const& texture_path);
 
+        [[nodiscard]] vulkan_image transfer_image(
+            std::span<std::byte const> image_data,
+            VkExtent2D extent);
+
         [[nodiscard]] vulkan_font
         load_font(std::filesystem::path const& font_path, uint32_t font_size);
 
-        [[nodiscard]] gltf_model load_model(
+        [[nodiscard]] std::unique_ptr<vkrndr::gltf_model> load_model(
             std::filesystem::path const& model_path);
 
     public: // Operators

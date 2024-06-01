@@ -136,6 +136,9 @@ namespace pawn
         VkDescriptorSetLayout descriptor_set_layout_{VK_NULL_HANDLE};
         std::unique_ptr<vkrndr::vulkan_pipeline> pipeline_;
 
+        VkSampler texture_sampler_{VK_NULL_HANDLE};
+        vkrndr::vulkan_image texture_image_;
+
         std::vector<frame_data> frame_data_;
 
         size_t vertex_count_{};

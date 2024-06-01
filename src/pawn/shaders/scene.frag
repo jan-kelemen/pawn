@@ -3,6 +3,7 @@
 layout(location = 0) in vec3 inColor;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec3 inFragmentPosition;
+layout(location = 3) in vec2 inTexCoordinate;
 
 layout(push_constant) uniform PushConsts {
     vec4 color;
@@ -10,7 +11,10 @@ layout(push_constant) uniform PushConsts {
     vec3 lightPosition;
     vec3 lightColor;
     int transformIndex;
+    int useTexture;
 } pushConsts;
+
+layout(binding = 1) uniform sampler2D texSampler;
 
 layout(location = 0) out vec4 outColor;
 
@@ -33,7 +37,12 @@ void main() {
     float spec = pow(max(dot(viewDir, reflectDirection), 0.0), 32);
     vec3 specular = specularStrength * spec * lightColor;  
 
-    vec3 result = (ambient + diffuse + specular) * inColor;
+    vec3 color = inColor;
+    if (pushConsts.useTexture == 1) {
+        color = texture(texSampler, inTexCoordinate).xyz;
+    }
+
+    vec3 result = (ambient + diffuse + specular) * color;
 
     outColor = vec4(result, 1.);
 }

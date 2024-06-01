@@ -69,34 +69,6 @@ void vkrndr::end_single_time_commands(vulkan_device const* const device,
         submit_info.pCommandBuffers);
 }
 
-void vkrndr::transition_image(VkImage const image,
-    VkCommandBuffer const command_buffer,
-    VkImageLayout const old_layout,
-    VkImageLayout const new_layout)
-{
-    VkImageMemoryBarrier2 barrier{};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-    barrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
-    barrier.srcAccessMask = VK_ACCESS_2_NONE;
-    barrier.oldLayout = old_layout;
-    barrier.newLayout = new_layout;
-    barrier.image = image;
-    barrier.subresourceRange = {
-        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        .baseMipLevel = 0,
-        .levelCount = 1,
-        .baseArrayLayer = 0,
-        .layerCount = 1,
-    };
-
-    VkDependencyInfo dependency{};
-    dependency.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    dependency.imageMemoryBarrierCount = 1;
-    dependency.pImageMemoryBarriers = &barrier;
-
-    vkCmdPipelineBarrier2(command_buffer, &dependency);
-}
-
 void vkrndr::copy_buffer_to_image(VkCommandBuffer const command_buffer,
     VkBuffer const buffer,
     VkImage const image,
@@ -166,6 +138,62 @@ void vkrndr::transition_to_present_layout(VkImage const image,
     barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     barrier.dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
     barrier.dstAccessMask = VK_ACCESS_2_NONE;
+    barrier.image = image;
+    barrier.subresourceRange = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+    };
+
+    VkDependencyInfo dependency{};
+    dependency.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dependency.imageMemoryBarrierCount = 1;
+    dependency.pImageMemoryBarriers = &barrier;
+
+    vkCmdPipelineBarrier2(command_buffer, &dependency);
+}
+
+void vkrndr::wait_for_transfer_write(VkImage image,
+    VkCommandBuffer command_buffer)
+{
+    VkImageMemoryBarrier2 barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_NONE;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.image = image;
+    barrier.subresourceRange = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+    };
+
+    VkDependencyInfo dependency{};
+    dependency.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dependency.imageMemoryBarrierCount = 1;
+    dependency.pImageMemoryBarriers = &barrier;
+
+    vkCmdPipelineBarrier2(command_buffer, &dependency);
+}
+
+void vkrndr::wait_for_transfer_write_completed(VkImage image,
+    VkCommandBuffer command_buffer)
+{
+    VkImageMemoryBarrier2 barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_NONE;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     barrier.image = image;
     barrier.subresourceRange = {
         .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,

@@ -74,7 +74,7 @@ vkrndr::vulkan_renderer::vulkan_renderer(vulkan_window* const window,
     , secondary_buffers_{vulkan_swap_chain::max_frames_in_flight}
     , descriptor_pool_{create_descriptor_pool(device)}
     , font_manager_{std::make_unique<font_manager>()}
-    , gltf_manager_{std::make_unique<gltf_manager>()}
+    , gltf_manager_{std::make_unique<gltf_manager>(this)}
 {
     recreate();
 
@@ -273,23 +273,32 @@ vkrndr::vulkan_image vkrndr::vulkan_renderer::load_texture(
     {
         throw std::runtime_error{"failed to load texture image!"};
     }
+    vulkan_image rv{transfer_image(
+        std::span{reinterpret_cast<std::byte const*>(pixels), image_size},
+        {cppext::narrow<uint32_t>(width), cppext::narrow<uint32_t>(height)})};
 
+    stbi_image_free(pixels);
+
+    return rv;
+}
+
+vkrndr::vulkan_image vkrndr::vulkan_renderer::transfer_image(
+    std::span<std::byte const> image_data,
+    VkExtent2D const extent)
+{
     vulkan_buffer staging_buffer{create_buffer(device_,
-        image_size,
+        image_data.size(),
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)};
 
     mapped_memory staging_map{
-        map_memory(device_, staging_buffer.memory, image_size)};
-    memcpy(staging_map.mapped_memory, pixels, static_cast<size_t>(image_size));
+        map_memory(device_, staging_buffer.memory, image_data.size())};
+    memcpy(staging_map.mapped_memory, image_data.data(), image_data.size());
     unmap_memory(device_, &staging_map);
-    stbi_image_free(pixels);
 
-    VkExtent2D const image_extent{static_cast<uint32_t>(width),
-        static_cast<uint32_t>(height)};
-    vulkan_image texture{create_image_and_view(device_,
-        image_extent,
+    vulkan_image image{create_image_and_view(device_,
+        extent,
         1,
         VK_SAMPLE_COUNT_1_BIT,
         VK_FORMAT_R8G8B8A8_SRGB,
@@ -307,18 +316,12 @@ vkrndr::vulkan_image vkrndr::vulkan_renderer::load_texture(
         1,
         std::span{&present_queue_buffer, 1});
 
-    transition_image(texture.image,
-        present_queue_buffer,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    wait_for_transfer_write(image.image, present_queue_buffer);
     copy_buffer_to_image(present_queue_buffer,
         staging_buffer.buffer,
-        texture.image,
-        image_extent);
-    transition_image(texture.image,
-        present_queue_buffer,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        image.image,
+        extent);
+    wait_for_transfer_write_completed(image.image, present_queue_buffer);
 
     end_single_time_commands(device_,
         queue->queue,
@@ -327,7 +330,7 @@ vkrndr::vulkan_image vkrndr::vulkan_renderer::load_texture(
 
     destroy(device_, &staging_buffer);
 
-    return texture;
+    return image;
 }
 
 vkrndr::vulkan_font vkrndr::vulkan_renderer::load_font(
@@ -374,18 +377,14 @@ vkrndr::vulkan_font vkrndr::vulkan_renderer::load_font(
         1,
         std::span{&present_queue_buffer, 1});
 
-    transition_image(texture.image,
-        present_queue_buffer,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    wait_for_transfer_write(texture.image, present_queue_buffer);
+
     copy_buffer_to_image(present_queue_buffer,
         staging_buffer.buffer,
         texture.image,
         bitmap_extent);
-    transition_image(texture.image,
-        present_queue_buffer,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    wait_for_transfer_write_completed(texture.image, present_queue_buffer);
 
     end_single_time_commands(device_,
         queue->queue,
@@ -400,7 +399,7 @@ vkrndr::vulkan_font vkrndr::vulkan_renderer::load_font(
         texture};
 }
 
-vkrndr::gltf_model vkrndr::vulkan_renderer::load_model(
+std::unique_ptr<vkrndr::gltf_model> vkrndr::vulkan_renderer::load_model(
     std::filesystem::path const& model_path)
 {
     return gltf_manager_->load(model_path);

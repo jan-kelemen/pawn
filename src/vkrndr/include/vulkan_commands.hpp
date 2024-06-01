@@ -29,11 +29,6 @@ namespace vkrndr
         std::span<VkCommandBuffer> command_buffers,
         VkCommandPool command_pool);
 
-    void transition_image(VkImage image,
-        VkCommandBuffer command_buffer,
-        VkImageLayout old_layout,
-        VkImageLayout new_layout);
-
     void copy_buffer_to_image(VkCommandBuffer command_buffer,
         VkBuffer buffer,
         VkImage image,
@@ -43,6 +38,11 @@ namespace vkrndr
         VkCommandBuffer command_buffer);
 
     void transition_to_present_layout(VkImage image,
+        VkCommandBuffer command_buffer);
+
+    void wait_for_transfer_write(VkImage image, VkCommandBuffer command_buffer);
+
+    void wait_for_transfer_write_completed(VkImage image,
         VkCommandBuffer command_buffer);
 } // namespace vkrndr
 

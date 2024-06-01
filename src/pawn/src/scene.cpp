@@ -44,11 +44,17 @@
 
 namespace
 {
+    DISABLE_WARNING_PUSH
+    DISABLE_WARNING_STRUCTURE_WAS_PADDED_DUE_TO_ALIGNMENT_SPECIFIER
+
     struct [[nodiscard]] vertex final
     {
         glm::fvec4 position;
-        glm::fvec3 normal;
+        alignas(16) glm::fvec3 normal;
+        alignas(16) glm::fvec2 texture_coordinates;
     };
+
+    DISABLE_WARNING_POP
 
     struct [[nodiscard]] transform final
     {
@@ -67,6 +73,7 @@ namespace
         alignas(16) glm::fvec3 light_position;
         alignas(16) glm::fvec3 light_color;
         int transform_index;
+        int use_texture;
     };
 
     DISABLE_WARNING_POP
@@ -92,7 +99,11 @@ namespace
             VkVertexInputAttributeDescription{.location = 1,
                 .binding = 0,
                 .format = VK_FORMAT_R32G32B32_SFLOAT,
-                .offset = offsetof(vertex, normal)}};
+                .offset = offsetof(vertex, normal)},
+            VkVertexInputAttributeDescription{.location = 2,
+                .binding = 0,
+                .format = VK_FORMAT_R32G32_SFLOAT,
+                .offset = offsetof(vertex, texture_coordinates)}};
 
         return descriptions;
     }
@@ -107,7 +118,16 @@ namespace
         vertex_uniform_binding.descriptorCount = 1;
         vertex_uniform_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-        std::array const bindings{vertex_uniform_binding};
+        VkDescriptorSetLayoutBinding sampler_layout_binding{};
+        sampler_layout_binding.binding = 1;
+        sampler_layout_binding.descriptorCount = 1;
+        sampler_layout_binding.descriptorType =
+            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        sampler_layout_binding.pImmutableSamplers = nullptr;
+
+        std::array const bindings{vertex_uniform_binding,
+            sampler_layout_binding};
 
         VkDescriptorSetLayoutCreateInfo layout_info{};
         layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -125,7 +145,9 @@ namespace
 
     void bind_descriptor_set(vkrndr::vulkan_device const* const device,
         VkDescriptorSet const& descriptor_set,
-        VkBuffer const vertex_buffer)
+        VkBuffer const vertex_buffer,
+        VkSampler const texture_sampler,
+        VkImageView const texture_image_view)
     {
         VkDescriptorBufferInfo const vertex_buffer_info{.buffer = vertex_buffer,
             .offset = 0,
@@ -141,13 +163,61 @@ namespace
         vertex_descriptor_write.descriptorCount = 1;
         vertex_descriptor_write.pBufferInfo = &vertex_buffer_info;
 
-        std::array const descriptor_writes{vertex_descriptor_write};
+        VkDescriptorImageInfo texture_image_info{};
+        texture_image_info.imageLayout =
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        texture_image_info.imageView = texture_image_view;
+        texture_image_info.sampler = texture_sampler;
+
+        VkWriteDescriptorSet texture_descriptor_write{};
+        texture_descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        texture_descriptor_write.dstSet = descriptor_set;
+        texture_descriptor_write.dstBinding = 1;
+        texture_descriptor_write.dstArrayElement = 0;
+        texture_descriptor_write.descriptorType =
+            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        texture_descriptor_write.descriptorCount = 1;
+        texture_descriptor_write.pImageInfo = &texture_image_info;
+
+        std::array const descriptor_writes{vertex_descriptor_write,
+            texture_descriptor_write};
 
         vkUpdateDescriptorSets(device->logical,
             vkrndr::count_cast(descriptor_writes.size()),
             descriptor_writes.data(),
             0,
             nullptr);
+    }
+
+    [[nodiscard]] VkSampler create_texture_sampler(
+        vkrndr::vulkan_device const* const device,
+        uint32_t const mip_levels = 1)
+    {
+        VkPhysicalDeviceProperties properties; // NOLINT
+        vkGetPhysicalDeviceProperties(device->physical, &properties);
+
+        VkSamplerCreateInfo sampler_info{};
+        sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        sampler_info.magFilter = VK_FILTER_NEAREST;
+        sampler_info.minFilter = VK_FILTER_NEAREST;
+        sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        sampler_info.anisotropyEnable = VK_FALSE;
+        sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+        sampler_info.unnormalizedCoordinates = VK_FALSE;
+        sampler_info.compareEnable = VK_FALSE;
+        sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+        sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        sampler_info.mipLodBias = 0.0f;
+        sampler_info.minLod = 0.0f;
+        sampler_info.maxLod = static_cast<float>(mip_levels);
+
+        VkSampler rv; // NOLINT
+        vkrndr::check_result(
+            vkCreateSampler(device->logical, &sampler_info, nullptr, &rv));
+
+        return rv;
     }
 
     [[nodiscard]] constexpr glm::fvec3 calculate_position(
@@ -199,7 +269,7 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
         std::pair{piece_type::knight, "piece_knight_white_01"sv},
         std::pair{piece_type::board, "board"sv}};
 
-    vkrndr::gltf_model const model{renderer->load_model("chess_set_2k.gltf")};
+    auto model{renderer->load_model("chess_set_2k.gltf")};
 
     std::vector<vkrndr::gltf_mesh const*> load_meshes;
     load_meshes.reserve(load_nodes.size());
@@ -207,10 +277,10 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
     for (auto const& [type, name] : load_nodes)
     {
         auto const it{std::ranges::find_if(
-            model.nodes,
+            model->nodes,
             [&name](auto const& node_name) { return name == node_name; },
             &vkrndr::gltf_node::name)};
-        if (it == std::cend(model.nodes))
+        if (it == std::cend(model->nodes))
         {
             continue;
         }
@@ -251,13 +321,17 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
             [&](vkrndr::gltf_vertex const& vert)
             {
                 return vertex{.position = glm::fvec4(vert.position, 0.0f),
-                    .normal = vert.normal};
+                    .normal = vert.normal,
+                    .texture_coordinates = vert.texture_coordinate};
             }).out;
 
         indices = std::ranges::copy(mesh->primitives[0].indices, indices).out;
     }
 
     unmap_memory(vulkan_device_, &vert_index_map);
+
+    texture_sampler_ = create_texture_sampler(vulkan_device_);
+    texture_image_ = model->textures[4].image;
 
     frame_data_.resize(renderer->image_count());
     for (frame_data& data : frame_data_)
@@ -275,10 +349,20 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
 
         bind_descriptor_set(vulkan_device_,
             data.descriptor_set_,
-            data.vertex_uniform_buffer_.buffer);
+            data.vertex_uniform_buffer_.buffer,
+            texture_sampler_,
+            texture_image_.view);
     }
 
     draw_meshes_[0] = to_board_peice(0, 0, mesh_color::none, piece_type::board);
+
+    for (auto [index, texture] : model->textures | std::views::enumerate)
+    {
+        if (index != 4)
+        {
+            destroy(vulkan_device_, &texture.image);
+        }
+    }
 }
 
 void pawn::scene::detach_renderer()
@@ -294,6 +378,9 @@ void pawn::scene::detach_renderer()
 
             destroy(vulkan_device_, &data.vertex_uniform_buffer_);
         }
+
+        destroy(vulkan_device_, &texture_image_);
+        vkDestroySampler(vulkan_device_->logical, texture_sampler_, nullptr);
 
         destroy(vulkan_device_, pipeline_.get());
         pipeline_.reset();
@@ -442,8 +529,8 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
         }
 
         return (draw_mesh.color == std::to_underlying(mesh_color::black))
-            ? glm::fvec4{0.2f, 0.2f, 0.2f, 1.0f}
-            : glm::fvec4{0.8f, 0.8f, 0.8f, 1.0f};
+            ? glm::fvec4{0.05f, 0.05f, 0.05f, 1.0f}
+            : glm::fvec4{0.9f, 0.9f, 0.9f, 1.0f};
     };
 
     for (auto const& [transform_index, draw_mesh] :
@@ -453,7 +540,8 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
             .camera = camera_,
             .light_position = light_position_,
             .light_color = light_color_,
-            .transform_index = cppext::narrow<int>(transform_index)};
+            .transform_index = cppext::narrow<int>(transform_index),
+            .use_texture = transform_index == 0};
 
         vkCmdPushConstants(command_buffer,
             pipeline_->pipeline_layout,
