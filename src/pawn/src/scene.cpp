@@ -12,6 +12,7 @@
 #include <vulkan_renderer.hpp>
 #include <vulkan_utility.hpp>
 
+#include <cppext_attribute.hpp>
 #include <cppext_numeric.hpp>
 #include <cppext_pragma_warning.hpp>
 
@@ -74,7 +75,7 @@ namespace
         alignas(16) glm::fvec3 light_position;
         alignas(16) glm::fvec3 light_color;
         int transform_index;
-        int use_texture;
+        bool use_texture;
     };
 
     DISABLE_WARNING_POP
@@ -279,7 +280,8 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
     {
         auto const it{std::ranges::find_if(
             model->nodes,
-            [&name](auto const& node_name) { return name == node_name; },
+            [&name](auto const& node_name)
+            { CPPEXT_SUPPRESS return name == node_name; },
             &vkrndr::gltf_node::name)};
         if (it == std::cend(model->nodes))
         {
@@ -564,7 +566,8 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
 
         auto const it{std::ranges::find_if(
             meshes_,
-            [&draw_mesh](auto const& type) { return draw_mesh.type == type; },
+            [&draw_mesh](auto const& type)
+            { CPPEXT_SUPPRESS return draw_mesh.type == type; },
             &mesh::type)};
         assert(it != std::cend(meshes_));
 
