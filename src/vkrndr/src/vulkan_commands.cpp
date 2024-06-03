@@ -132,6 +132,16 @@ void vkrndr::copy_buffer_to_image(VkCommandBuffer const command_buffer,
         &region);
 }
 
+void vkrndr::copy_buffer_to_buffer(VkCommandBuffer const command_buffer,
+    VkBuffer const source_buffer,
+    VkDeviceSize const size,
+    VkBuffer const target_buffer)
+{
+    VkBufferCopy const region{.srcOffset = 0, .dstOffset = 0, .size = size};
+
+    vkCmdCopyBuffer(command_buffer, source_buffer, target_buffer, 1, &region);
+}
+
 void vkrndr::wait_for_color_attachment_write(VkImage const image,
     VkCommandBuffer command_buffer)
 {

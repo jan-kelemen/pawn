@@ -301,34 +301,45 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
 
     size_t const vertices_size{vertex_count_ * sizeof(vertex)};
     size_t const indices_size{index_count_ * sizeof(uint32_t)};
-    vert_index_buffer_ = create_buffer(vulkan_device_,
+
+    vkrndr::vulkan_buffer staging_buffer{create_buffer(vulkan_device_,
         vertices_size + indices_size,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-    vkrndr::mapped_memory vert_index_map{vkrndr::map_memory(vulkan_device_,
-        vert_index_buffer_.memory,
-        vertices_size + indices_size)};
-
-    vertex* vertices{vert_index_map.as<vertex>()};
-    uint32_t* indices{vert_index_map.as<uint32_t>(vertices_size)};
-
-    for (auto const& mesh : load_meshes)
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)};
     {
-        vertices = std::ranges::transform(mesh->primitives[0].vertices,
-            vertices,
-            [&](vkrndr::gltf_vertex const& vert)
-            {
-                return vertex{.position = glm::fvec4(vert.position, 0.0f),
-                    .normal = vert.normal,
-                    .texture_coordinates = vert.texture_coordinate};
-            }).out;
+        vkrndr::mapped_memory vert_index_map{vkrndr::map_memory(vulkan_device_,
+            staging_buffer.memory,
+            vertices_size + indices_size)};
 
-        indices = std::ranges::copy(mesh->primitives[0].indices, indices).out;
+        vertex* vertices{vert_index_map.as<vertex>()};
+        uint32_t* indices{vert_index_map.as<uint32_t>(vertices_size)};
+
+        for (auto const& mesh : load_meshes)
+        {
+            vertices = std::ranges::transform(mesh->primitives[0].vertices,
+                vertices,
+                [&](vkrndr::gltf_vertex const& vert)
+                {
+                    return vertex{.position = glm::fvec4(vert.position, 0.0f),
+                        .normal = vert.normal,
+                        .texture_coordinates = vert.texture_coordinate};
+                }).out;
+
+            indices =
+                std::ranges::copy(mesh->primitives[0].indices, indices).out;
+        }
+
+        unmap_memory(vulkan_device_, &vert_index_map);
     }
 
-    unmap_memory(vulkan_device_, &vert_index_map);
+    vert_index_buffer_ = create_buffer(vulkan_device_,
+        vertices_size + indices_size,
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    vulkan_renderer_->transfer_buffer(staging_buffer, vert_index_buffer_);
+    destroy(vulkan_device_, &staging_buffer);
 
     texture_sampler_ = create_texture_sampler(vulkan_device_);
     texture_image_ = model->textures[4].image;

@@ -34,6 +34,11 @@ namespace vkrndr
         VkImage image,
         VkExtent2D extent);
 
+    void copy_buffer_to_buffer(VkCommandBuffer command_buffer,
+        VkBuffer source_buffer,
+        VkDeviceSize size,
+        VkBuffer target_buffer);
+
     void wait_for_color_attachment_write(VkImage image,
         VkCommandBuffer command_buffer);
 

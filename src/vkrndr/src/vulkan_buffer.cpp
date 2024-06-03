@@ -18,7 +18,8 @@ vkrndr::vulkan_buffer vkrndr::create_buffer(vulkan_device const* const device,
     VkBufferCreateFlags const usage,
     VkMemoryPropertyFlags const memory_properties)
 {
-    vulkan_buffer rv;
+    vulkan_buffer rv{};
+    rv.size = size;
 
     VkBufferCreateInfo buffer_info{};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;

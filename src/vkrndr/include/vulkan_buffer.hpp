@@ -14,6 +14,7 @@ namespace vkrndr
     {
         VkBuffer buffer{VK_NULL_HANDLE};
         VkDeviceMemory memory{VK_NULL_HANDLE};
+        VkDeviceSize size{};
     };
 
     void destroy(vulkan_device const* device, vulkan_buffer* buffer);

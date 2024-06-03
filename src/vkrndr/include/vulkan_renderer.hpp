@@ -18,6 +18,7 @@ namespace vkrndr
     class font_manager;
 
     class imgui_render_layer;
+    struct vulkan_buffer;
     struct vulkan_context;
     struct vulkan_device;
     class vulkan_scene;
@@ -66,6 +67,9 @@ namespace vkrndr
         [[nodiscard]] vulkan_image transfer_image(
             std::span<std::byte const> image_data,
             VkExtent2D extent);
+
+        void transfer_buffer(vulkan_buffer const& source,
+            vulkan_buffer const& target);
 
         [[nodiscard]] vulkan_font
         load_font(std::filesystem::path const& font_path, uint32_t font_size);

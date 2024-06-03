@@ -333,6 +333,28 @@ vkrndr::vulkan_image vkrndr::vulkan_renderer::transfer_image(
     return image;
 }
 
+void vkrndr::vulkan_renderer::transfer_buffer(vulkan_buffer const& source,
+    vulkan_buffer const& target)
+{
+    vulkan_queue* const transfer_queue{device_->transfer_queue};
+
+    VkCommandBuffer command_buffer; // NOLINT
+    begin_single_time_commands(device_,
+        transfer_queue->command_pool,
+        1,
+        std::span{&command_buffer, 1});
+
+    copy_buffer_to_buffer(command_buffer,
+        source.buffer,
+        source.size,
+        target.buffer);
+
+    end_single_time_commands(device_,
+        transfer_queue->queue,
+        std::span{&command_buffer, 1},
+        transfer_queue->command_pool);
+}
+
 vkrndr::vulkan_font vkrndr::vulkan_renderer::load_font(
     std::filesystem::path const& font_path,
     uint32_t const font_size)
