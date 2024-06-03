@@ -16,6 +16,8 @@
 #include <vulkan_utility.hpp>
 #include <vulkan_window.hpp>
 
+#include <cppext_numeric.hpp>
+
 #include <stb_image.h>
 
 #include <array>
@@ -273,8 +275,12 @@ vkrndr::vulkan_image vkrndr::vulkan_renderer::load_texture(
     {
         throw std::runtime_error{"failed to load texture image!"};
     }
-    vulkan_image rv{transfer_image(
-        std::span{reinterpret_cast<std::byte const*>(pixels), image_size},
+
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto const image_bytes{
+        std::span{reinterpret_cast<std::byte const*>(pixels), image_size}};
+    // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+    vulkan_image rv{transfer_image(image_bytes,
         {cppext::narrow<uint32_t>(width), cppext::narrow<uint32_t>(height)})};
 
     stbi_image_free(pixels);

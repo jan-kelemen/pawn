@@ -75,14 +75,14 @@ namespace vkrndr
     class [[nodiscard]] gltf_manager final
     {
     public:
-        gltf_manager(vulkan_renderer* renderer);
+        explicit gltf_manager(vulkan_renderer* renderer);
 
         gltf_manager(gltf_manager const&) = delete;
 
         gltf_manager(gltf_manager&&) noexcept = default;
 
     public:
-        ~gltf_manager();
+        ~gltf_manager() = default;
 
     public:
         std::unique_ptr<gltf_model> load(std::filesystem::path const& path);

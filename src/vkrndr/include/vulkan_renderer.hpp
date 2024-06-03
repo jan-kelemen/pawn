@@ -7,6 +7,7 @@
 #include <vulkan_font.hpp>
 #include <vulkan_image.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <memory>

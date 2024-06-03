@@ -1,5 +1,6 @@
 #include <gltf_manager.hpp>
 
+#include <vulkan_image.hpp>
 #include <vulkan_renderer.hpp>
 #include <vulkan_utility.hpp>
 
@@ -77,7 +78,7 @@ namespace
     constexpr primitive_buffer<TargetType> buffer_for(
         tinygltf::Model const& model,
         int const accessor_index,
-        int type = TINYGLTF_TYPE_VEC3)
+        uint32_t type = TINYGLTF_TYPE_VEC3)
     {
         auto const& [accessor, buffer, view] = data_for(model, accessor_index);
 
@@ -95,6 +96,63 @@ namespace
 
         rv.count = accessor.count;
 
+        return rv;
+    }
+
+    std::vector<vkrndr::gltf_vertex> load_vertices(tinygltf::Model const& model,
+        tinygltf::Primitive const& primitive)
+    {
+        std::vector<vkrndr::gltf_vertex> rv;
+
+        float const* position_buffer{nullptr};
+        float const* normal_buffer{nullptr};
+        float const* texture_buffer{nullptr};
+
+        size_t vertex_count{};
+
+        size_t position_stride{};
+        size_t normal_stride{};
+        size_t texture_stride{};
+
+        // Get buffer data for vertex normals
+        if (auto const it{primitive.attributes.find("POSITION")};
+            it != primitive.attributes.end())
+        {
+            std::tie(position_buffer, position_stride, vertex_count) =
+                buffer_for<float>(model, it->second);
+        }
+
+        if (auto const it{primitive.attributes.find("NORMAL")};
+            it != primitive.attributes.end())
+        {
+            size_t normal_count; // NOLINT
+            std::tie(normal_buffer, normal_stride, normal_count) =
+                buffer_for<float>(model, it->second);
+        }
+
+        if (auto const it{primitive.attributes.find("TEXCOORD_0")};
+            it != primitive.attributes.end())
+        {
+            size_t texcoord_count; // NOLINT
+            std::tie(texture_buffer, texture_stride, texcoord_count) =
+                buffer_for<float>(model, it->second, TINYGLTF_TYPE_VEC2);
+        }
+
+        for (size_t vertex{}; vertex != vertex_count; ++vertex)
+        {
+            vkrndr::gltf_vertex const vert{
+                .position =
+                    glm::make_vec3(&position_buffer[vertex * position_stride]),
+                .normal = glm::normalize(normal_buffer
+                        ? glm::make_vec3(&normal_buffer[vertex * normal_stride])
+                        : glm::fvec3(0.0f)),
+                .texture_coordinate = texture_buffer
+                    ? glm::make_vec2(&texture_buffer[vertex * texture_stride])
+                    : glm::fvec2(0.0f)};
+
+            static_assert(std::is_trivial_v<vkrndr::gltf_vertex>);
+            rv.push_back(vert);
+        }
         return rv;
     }
 
@@ -179,15 +237,15 @@ namespace
         tinygltf::Model& model,
         vkrndr::gltf_model& new_model)
     {
-        for (tinygltf::Texture& tex : model.textures)
+        for (tinygltf::Texture const& tex : model.textures)
         {
-            int const source{tex.source};
+            auto const source{size_cast(tex.source)};
             tinygltf::Image const& image{model.images[source]};
 
-            vkrndr::vulkan_image texture_image{
+            vkrndr::vulkan_image const texture_image{
                 renderer->transfer_image(vkrndr::as_bytes(image.image),
                     {cppext::narrow<uint32_t>(image.width),
-                        {cppext::narrow<uint32_t>(image.height)}})};
+                        cppext::narrow<uint32_t>(image.height)})};
 
             new_model.textures.emplace_back(texture_image);
         }
@@ -204,7 +262,7 @@ namespace
                 material.pbrMetallicRoughness.baseColorTexture};
 
             new_material.base_color_texture =
-                &new_model.textures[texture.index];
+                &new_model.textures[size_cast(texture.index)];
             new_material.base_color_coord_set =
                 cppext::narrow<uint8_t>(texture.texCoord);
 
@@ -223,8 +281,6 @@ vkrndr::gltf_manager::gltf_manager(vulkan_renderer* renderer)
     : renderer_{renderer}
 {
 }
-
-vkrndr::gltf_manager::~gltf_manager() = default;
 
 std::unique_ptr<vkrndr::gltf_model> vkrndr::gltf_manager::load(
     std::filesystem::path const& path)
@@ -267,69 +323,10 @@ std::unique_ptr<vkrndr::gltf_model> vkrndr::gltf_manager::load(
 
             for (tinygltf::Primitive const& primitive : mesh.primitives)
             {
-                gltf_primitive new_primitive;
-
-                // Vertices
-                {
-                    float const* position_buffer{nullptr};
-                    float const* normal_buffer{nullptr};
-                    float const* texture_buffer{nullptr};
-
-                    size_t vertex_count{};
-
-                    size_t position_stride{};
-                    size_t normal_stride{};
-                    size_t texture_stride{};
-
-                    // Get buffer data for vertex normals
-                    if (auto const it{primitive.attributes.find("POSITION")};
-                        it != primitive.attributes.end())
-                    {
-                        std::tie(position_buffer,
-                            position_stride,
-                            vertex_count) =
-                            buffer_for<float>(model, it->second);
-                    }
-
-                    if (auto const it{primitive.attributes.find("NORMAL")};
-                        it != primitive.attributes.end())
-                    {
-                        size_t normal_count; // NOLINT
-                        std::tie(normal_buffer, normal_stride, normal_count) =
-                            buffer_for<float>(model, it->second);
-                    }
-
-                    if (auto const it{primitive.attributes.find("TEXCOORD_0")};
-                        it != primitive.attributes.end())
-                    {
-                        size_t texcoord_count; // NOLINT
-                        std::tie(texture_buffer,
-                            texture_stride,
-                            texcoord_count) = buffer_for<float>(model,
-                            it->second,
-                            TINYGLTF_TYPE_VEC2);
-                    }
-
-                    for (size_t vertex{}; vertex != vertex_count; ++vertex)
-                    {
-                        gltf_vertex const vert{
-                            .position = glm::make_vec3(
-                                &position_buffer[vertex * position_stride]),
-                            .normal = glm::normalize(normal_buffer
-                                    ? glm::make_vec3(&normal_buffer[vertex *
-                                          normal_stride])
-                                    : glm::fvec3(0.0f)),
-                            .texture_coordinate = texture_buffer
-                                ? glm::make_vec2(
-                                      &texture_buffer[vertex * texture_stride])
-                                : glm::fvec2(0.0f)};
-
-                        static_assert(std::is_trivial_v<gltf_vertex>);
-                        new_primitive.vertices.push_back(vert);
-                    }
-                }
-
-                new_primitive.indices = load_indices(model, primitive);
+                gltf_primitive new_primitive{
+                    .vertices = load_vertices(model, primitive),
+                    .indices = load_indices(model, primitive),
+                    .material = &rv->materials[size_cast(primitive.material)]};
 
                 new_mesh.primitives.push_back(std::move(new_primitive));
             }
