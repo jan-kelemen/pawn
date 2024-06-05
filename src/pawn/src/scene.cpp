@@ -75,7 +75,7 @@ namespace
         alignas(16) glm::fvec3 light_position;
         alignas(16) glm::fvec3 light_color;
         int transform_index;
-        bool use_texture;
+        uint32_t use_texture;
     };
 
     DISABLE_WARNING_POP
