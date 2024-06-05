@@ -11,6 +11,7 @@ class PawnConan(ConanFile):
     exports_sources = "cmake", "src", "CMakeLists.txt", "LICENSE"
 
     def requirements(self):
+        self.requires("boost/1.85.0")
         self.requires("glm/cci.20230113")
         self.requires("fmt/10.2.1")
         self.requires("freetype/2.13.2")

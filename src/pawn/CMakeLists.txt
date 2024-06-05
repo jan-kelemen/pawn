@@ -5,6 +5,8 @@ target_sources(pawn
         ${CMAKE_CURRENT_SOURCE_DIR}/src/pawn.m.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/scene.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/scene.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/uci_engine.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/uci_engine.hpp
 )
 
 target_include_directories(pawn
@@ -18,6 +20,7 @@ target_link_libraries(pawn
         imgui_impl
         vkrndr
     PRIVATE
+        boost::boost
         glm::glm
         SDL2::SDL2main
         spdlog::spdlog

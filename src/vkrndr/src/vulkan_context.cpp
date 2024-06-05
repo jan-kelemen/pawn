@@ -82,8 +82,7 @@ namespace
             break;
         default:
             spdlog::error("Unrecognized severity {}. {}",
-                static_cast<std::underlying_type_t<
-                    VkDebugUtilsMessageSeverityFlagBitsEXT>>(severity),
+                std::to_underlying(severity),
                 callback_data->pMessage);
             break;
         }

@@ -1,5 +1,7 @@
 # pawn [![GitHub Build status](https://github.com/jan-kelemen/pawn/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jan-kelemen/pawn/actions/workflows/ci.yml/badge.svg?branch=master)
 
+UCI protocol compatible GUI rendered with Vulkan API.
+
 ## Building
 Necessary build tools are:
 * CMake 3.27 or higher

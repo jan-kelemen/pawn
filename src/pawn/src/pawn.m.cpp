@@ -1,5 +1,5 @@
-#include <initializer_list>
 #include <scene.hpp>
+#include <uci_engine.hpp>
 
 #include <sdl_window.hpp>
 #include <vulkan_context.hpp>
@@ -62,6 +62,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
         512,
         512};
 
+    pawn::uci_engine engine(argv[1]);
     pawn::scene scene;
 
     auto context{vkrndr::create_context(&window, enable_validation_layers)};
