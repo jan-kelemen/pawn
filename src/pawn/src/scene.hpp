@@ -1,5 +1,6 @@
 #ifndef PAWN_SCENE_INLCUDED
 #define PAWN_SCENE_INLCUDED
+
 #include <vulkan_buffer.hpp>
 #include <vulkan_image.hpp>
 #include <vulkan_scene.hpp>
@@ -25,6 +26,11 @@ namespace vkrndr
     struct vulkan_pipeline;
     class vulkan_renderer;
 } // namespace vkrndr
+
+namespace pawn
+{
+    class uci_engine;
+} // namespace pawn
 
 namespace pawn
 {
@@ -78,7 +84,7 @@ namespace pawn
     class [[nodiscard]] scene final : public vkrndr::vulkan_scene
     {
     public: // Construction
-        scene();
+        scene(uci_engine const& engine);
 
         scene(scene const&) = delete;
 
@@ -126,6 +132,8 @@ namespace pawn
         };
 
     private: // Data
+        uci_engine const* engine_{};
+
         vkrndr::vulkan_device* vulkan_device_{};
         vkrndr::vulkan_renderer* vulkan_renderer_{};
 

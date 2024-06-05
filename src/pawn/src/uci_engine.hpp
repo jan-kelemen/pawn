@@ -2,6 +2,7 @@
 #define PAWN_UCI_ENGINE_INCLUDED
 
 #include <memory>
+#include <span>
 #include <string_view>
 
 namespace pawn
@@ -17,6 +18,9 @@ namespace pawn
 
     public:
         ~uci_engine();
+
+    public:
+        std::span<std::string const> debug_output() const;
 
     public:
         uci_engine& operator=(uci_engine const&) = delete;

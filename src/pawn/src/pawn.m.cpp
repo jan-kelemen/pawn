@@ -63,7 +63,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
         512};
 
     pawn::uci_engine engine(argv[1]);
-    pawn::scene scene;
+    pawn::scene scene{engine};
 
     auto context{vkrndr::create_context(&window, enable_validation_layers)};
     auto device{vkrndr::create_device(context)};

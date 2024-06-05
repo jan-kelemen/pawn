@@ -1,4 +1,5 @@
 #include <scene.hpp>
+#include <uci_engine.hpp>
 
 #include <gltf_manager.hpp>
 #include <utility>
@@ -228,7 +229,7 @@ namespace
     }
 } // namespace
 
-pawn::scene::scene() = default;
+pawn::scene::scene(uci_engine const& engine) : engine_{&engine} {};
 
 pawn::scene::~scene() = default;
 
@@ -610,5 +611,12 @@ void pawn::scene::draw_imgui()
         -1.0f,
         1.0f);
     ImGui::SliderFloat3("Color", glm::value_ptr(light_color_), 0.0f, 1.0f);
+    ImGui::End();
+
+    ImGui::Begin("Engine debug");
+    for (std::string const& line : engine_->debug_output())
+    {
+        ImGui::Text(line.c_str());
+    }
     ImGui::End();
 }
