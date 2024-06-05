@@ -123,7 +123,6 @@ namespace pawn
         struct [[nodiscard]] frame_data final
         {
             VkDescriptorSet descriptor_set_{VK_NULL_HANDLE};
-            vkrndr::vulkan_buffer vertex_uniform_buffer_;
         };
 
     private: // Data
@@ -131,6 +130,7 @@ namespace pawn
         vkrndr::vulkan_renderer* vulkan_renderer_{};
 
         vkrndr::vulkan_buffer vert_index_buffer_;
+        vkrndr::vulkan_buffer vertex_uniform_buffer_;
         vkrndr::vulkan_image depth_buffer_;
 
         VkDescriptorSetLayout descriptor_set_layout_{VK_NULL_HANDLE};

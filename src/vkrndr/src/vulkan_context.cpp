@@ -29,7 +29,7 @@ namespace
     constexpr VkValidationFeaturesEXT validation_features = {
         VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,
         nullptr,
-        1,
+        vkrndr::count_cast(validation_feature_enable.size()),
         validation_feature_enable.data(),
         0,
         nullptr};

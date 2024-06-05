@@ -147,14 +147,10 @@ namespace
 
     void bind_descriptor_set(vkrndr::vulkan_device const* const device,
         VkDescriptorSet const& descriptor_set,
-        VkBuffer const vertex_buffer,
+        VkDescriptorBufferInfo const vertex_buffer_info,
         VkSampler const texture_sampler,
         VkImageView const texture_image_view)
     {
-        VkDescriptorBufferInfo const vertex_buffer_info{.buffer = vertex_buffer,
-            .offset = 0,
-            .range = VK_WHOLE_SIZE};
-
         VkWriteDescriptorSet vertex_descriptor_write{};
         vertex_descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         vertex_descriptor_write.dstSet = descriptor_set;
@@ -344,18 +340,19 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
     vulkan_renderer_->transfer_buffer(staging_buffer, vert_index_buffer_);
     destroy(vulkan_device_, &staging_buffer);
 
+    size_t const uniform_buffer_size{sizeof(transform) * draw_meshes_.size()};
+    vertex_uniform_buffer_ = create_buffer(vulkan_device_,
+        uniform_buffer_size * renderer->image_count(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
     texture_sampler_ = create_texture_sampler(vulkan_device_);
     texture_image_ = model->textures[4].image;
 
     frame_data_.resize(renderer->image_count());
-    for (frame_data& data : frame_data_)
+    for (auto const& [index, data] : std::views::enumerate(frame_data_))
     {
-        data.vertex_uniform_buffer_ = create_buffer(vulkan_device_,
-            sizeof(transform) * draw_meshes_.size(),
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
         create_descriptor_sets(vulkan_device_,
             descriptor_set_layout_,
             renderer->descriptor_pool(),
@@ -363,7 +360,10 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
 
         bind_descriptor_set(vulkan_device_,
             data.descriptor_set_,
-            data.vertex_uniform_buffer_.buffer,
+            VkDescriptorBufferInfo{.buffer = vertex_uniform_buffer_.buffer,
+                .offset =
+                    cppext::narrow<VkDeviceSize>(index) * uniform_buffer_size,
+                .range = uniform_buffer_size},
             texture_sampler_,
             texture_image_.view);
     }
@@ -389,8 +389,6 @@ void pawn::scene::detach_renderer()
                 vulkan_renderer_->descriptor_pool(),
                 1,
                 &data.descriptor_set_);
-
-            destroy(vulkan_device_, &data.vertex_uniform_buffer_);
         }
 
         destroy(vulkan_device_, &texture_image_);
@@ -404,7 +402,7 @@ void pawn::scene::detach_renderer()
             nullptr);
 
         destroy(vulkan_device_, &depth_buffer_);
-
+        destroy(vulkan_device_, &vertex_uniform_buffer_);
         destroy(vulkan_device_, &vert_index_buffer_);
     }
     vulkan_device_ = nullptr;
@@ -427,8 +425,9 @@ void pawn::scene::update()
 {
     {
         vkrndr::mapped_memory uniform_map{vkrndr::map_memory(vulkan_device_,
-            frame_data_[current_frame_].vertex_uniform_buffer_.memory,
-            sizeof(transform))};
+            vertex_uniform_buffer_.memory,
+            sizeof(transform) * draw_meshes_.size(),
+            current_frame_ * sizeof(transform) * draw_meshes_.size())};
 
         auto const view_matrix{
             glm::lookAt(camera_, camera_ + front_face_, up_direction_)};
@@ -535,15 +534,10 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
         0,
         nullptr);
 
-    auto generate_color = [](board_piece draw_mesh)
+    auto const generate_color = [](board_piece draw_mesh)
     {
-        if (draw_mesh.type == piece_type::board)
-        {
-            return glm::fvec4{0.5f, 0.8f, 0.4f, 1.0f};
-        }
-
         return (draw_mesh.color == std::to_underlying(mesh_color::black))
-            ? glm::fvec4{0.05f, 0.05f, 0.05f, 1.0f}
+            ? glm::fvec4{0.1f, 0.1f, 0.1f, 1.0f}
             : glm::fvec4{0.9f, 0.9f, 0.9f, 1.0f};
     };
 
