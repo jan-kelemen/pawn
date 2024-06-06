@@ -35,8 +35,26 @@ add_dependencies(pawn shaders)
 
 add_custom_target(shaders
     DEPENDS
+        ${CMAKE_CURRENT_BINARY_DIR}/outline.frag.spv
+        ${CMAKE_CURRENT_BINARY_DIR}/outline.vert.spv
         ${CMAKE_CURRENT_BINARY_DIR}/scene.frag.spv
         ${CMAKE_CURRENT_BINARY_DIR}/scene.vert.spv
+)
+
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/outline.vert.spv
+    COMMAND 
+        ${GLSLC_EXE} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/outline.vert -o ${CMAKE_CURRENT_BINARY_DIR}/outline.vert.spv
+    DEPENDS 
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/outline.vert
+)
+
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/outline.frag.spv
+    COMMAND 
+        ${GLSLC_EXE} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/outline.frag -o ${CMAKE_CURRENT_BINARY_DIR}/outline.frag.spv
+    DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/outline.frag
 )
 
 add_custom_command(

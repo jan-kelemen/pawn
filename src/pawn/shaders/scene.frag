@@ -10,6 +10,7 @@ layout(push_constant) uniform PushConsts {
     vec3 lightPosition;
     vec3 lightColor;
     int transformIndex;
+    float outlineWidth;
     bool useTexture;
 } pushConsts;
 

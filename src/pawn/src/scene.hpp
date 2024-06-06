@@ -142,7 +142,9 @@ namespace pawn
         vkrndr::vulkan_image depth_buffer_;
 
         VkDescriptorSetLayout descriptor_set_layout_{VK_NULL_HANDLE};
-        std::unique_ptr<vkrndr::vulkan_pipeline> pipeline_;
+        std::unique_ptr<vkrndr::vulkan_pipeline> piece_pipeline_;
+        std::unique_ptr<vkrndr::vulkan_pipeline> outlined_piece_pipeline_;
+        std::unique_ptr<vkrndr::vulkan_pipeline> outline_pipeline_;
 
         VkSampler texture_sampler_{VK_NULL_HANDLE};
         vkrndr::vulkan_image texture_image_;

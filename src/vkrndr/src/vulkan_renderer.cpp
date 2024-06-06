@@ -6,6 +6,7 @@
 #include <imgui_render_layer.hpp>
 #include <vulkan_buffer.hpp>
 #include <vulkan_commands.hpp>
+#include <vulkan_depth_buffer.hpp>
 #include <vulkan_device.hpp>
 #include <vulkan_font.hpp>
 #include <vulkan_image.hpp>
@@ -207,6 +208,11 @@ void vkrndr::vulkan_renderer::draw(vulkan_scene* scene)
         depth_attachment_info =
             setup_depth_attachment(scene->clear_depth(), depth_image->view);
         rendering_inheritance_info.depthAttachmentFormat = depth_image->format;
+        if (has_stencil_component(depth_image->format))
+        {
+            rendering_inheritance_info.stencilAttachmentFormat =
+                depth_image->format;
+        }
     }
 
     VkRenderingInfo render_info{};
@@ -219,6 +225,11 @@ void vkrndr::vulkan_renderer::draw(vulkan_scene* scene)
     if (depth_attachment_info)
     {
         render_info.pDepthAttachment = &depth_attachment_info.value();
+        if (rendering_inheritance_info.stencilAttachmentFormat !=
+            VK_FORMAT_UNDEFINED)
+        {
+            render_info.pStencilAttachment = &depth_attachment_info.value();
+        }
     }
 
     wait_for_color_attachment_write(swap_chain_->image(image_index),

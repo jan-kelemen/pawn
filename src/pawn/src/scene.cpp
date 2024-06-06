@@ -76,6 +76,7 @@ namespace
         alignas(16) glm::fvec3 light_position;
         alignas(16) glm::fvec3 light_color;
         int transform_index;
+        float outline_width;
         uint32_t use_texture;
     };
 
@@ -241,9 +242,17 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
 
     descriptor_set_layout_ = create_descriptor_set_layout(vulkan_device_);
 
-    depth_buffer_ = vkrndr::create_depth_buffer(device, renderer->extent());
+    depth_buffer_ =
+        vkrndr::create_depth_buffer(device, renderer->extent(), true);
 
-    pipeline_ = std::make_unique<vkrndr::vulkan_pipeline>(
+    VkStencilOpState const default_stencil_state{.failOp = VK_STENCIL_OP_KEEP,
+        .passOp = VK_STENCIL_OP_KEEP,
+        .depthFailOp = VK_STENCIL_OP_KEEP,
+        .compareOp = VK_COMPARE_OP_ALWAYS,
+        .compareMask = 0xff,
+        .writeMask = 0xff,
+        .reference = 0xff};
+    piece_pipeline_ = std::make_unique<vkrndr::vulkan_pipeline>(
         vkrndr::vulkan_pipeline_builder{vulkan_device_,
             renderer->image_format()}
             .add_shader(VK_SHADER_STAGE_VERTEX_BIT, "scene.vert.spv", "main")
@@ -255,7 +264,61 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
                     VK_SHADER_STAGE_FRAGMENT_BIT,
                 .offset = 0,
                 .size = sizeof(push_constants)})
-            .with_depth_stencil(depth_buffer_.format)
+            .with_depth_test(depth_buffer_.format)
+            .with_stencil_test(depth_buffer_.format,
+                default_stencil_state,
+                default_stencil_state)
+            .build());
+
+    VkStencilOpState const model_stencil_state{.failOp = VK_STENCIL_OP_REPLACE,
+        .passOp = VK_STENCIL_OP_REPLACE,
+        .depthFailOp = VK_STENCIL_OP_REPLACE,
+        .compareOp = VK_COMPARE_OP_ALWAYS,
+        .compareMask = 0xff,
+        .writeMask = 0xff,
+        .reference = 0x1};
+    outlined_piece_pipeline_ = std::make_unique<vkrndr::vulkan_pipeline>(
+        vkrndr::vulkan_pipeline_builder{vulkan_device_,
+            renderer->image_format()}
+            .add_shader(VK_SHADER_STAGE_VERTEX_BIT, "scene.vert.spv", "main")
+            .add_shader(VK_SHADER_STAGE_FRAGMENT_BIT, "scene.frag.spv", "main")
+            .with_rasterization_samples(vulkan_device_->max_msaa_samples)
+            .add_vertex_input(binding_description(), attribute_descriptions())
+            .add_descriptor_set_layout(descriptor_set_layout_)
+            .with_push_constants({.stageFlags = VK_SHADER_STAGE_VERTEX_BIT |
+                    VK_SHADER_STAGE_FRAGMENT_BIT,
+                .offset = 0,
+                .size = sizeof(push_constants)})
+            .with_depth_test(depth_buffer_.format)
+            .with_stencil_test(depth_buffer_.format,
+                model_stencil_state,
+                model_stencil_state)
+            .build());
+
+    VkStencilOpState const outline_stencil_state{.failOp = VK_STENCIL_OP_KEEP,
+        .passOp = VK_STENCIL_OP_REPLACE,
+        .depthFailOp = VK_STENCIL_OP_KEEP,
+        .compareOp = VK_COMPARE_OP_NOT_EQUAL,
+        .compareMask = 0xff,
+        .writeMask = 0xff,
+        .reference = 1};
+    outline_pipeline_ = std::make_unique<vkrndr::vulkan_pipeline>(
+        vkrndr::vulkan_pipeline_builder{vulkan_device_,
+            renderer->image_format()}
+            .add_shader(VK_SHADER_STAGE_VERTEX_BIT, "outline.vert.spv", "main")
+            .add_shader(VK_SHADER_STAGE_FRAGMENT_BIT,
+                "outline.frag.spv",
+                "main")
+            .with_rasterization_samples(vulkan_device_->max_msaa_samples)
+            .add_vertex_input(binding_description(), attribute_descriptions())
+            .add_descriptor_set_layout(descriptor_set_layout_)
+            .with_push_constants({.stageFlags = VK_SHADER_STAGE_VERTEX_BIT |
+                    VK_SHADER_STAGE_FRAGMENT_BIT,
+                .offset = 0,
+                .size = sizeof(push_constants)})
+            .with_stencil_test(depth_buffer_.format,
+                outline_stencil_state,
+                outline_stencil_state)
             .build());
 
     using namespace std::string_view_literals;
@@ -395,8 +458,11 @@ void pawn::scene::detach_renderer()
         destroy(vulkan_device_, &texture_image_);
         vkDestroySampler(vulkan_device_->logical, texture_sampler_, nullptr);
 
-        destroy(vulkan_device_, pipeline_.get());
-        pipeline_.reset();
+        destroy(vulkan_device_, outline_pipeline_.get());
+        outline_pipeline_.reset();
+
+        destroy(vulkan_device_, outlined_piece_pipeline_.get());
+        outlined_piece_pipeline_.reset();
 
         vkDestroyDescriptorSetLayout(vulkan_device_->logical,
             descriptor_set_layout_,
@@ -481,22 +547,21 @@ void pawn::scene::update()
 
 VkClearValue pawn::scene::clear_color() { return {{{1.f, .5f, .3f, 1.f}}}; }
 
-VkClearValue pawn::scene::clear_depth() { return {.depthStencil = {1.0f, 0}}; }
+VkClearValue pawn::scene::clear_depth()
+{
+    return {.depthStencil = {1.0f, 255}};
+}
 
 vkrndr::vulkan_image* pawn::scene::depth_image() { return &depth_buffer_; }
 
 void pawn::scene::resize(VkExtent2D extent)
 {
     destroy(vulkan_device_, &depth_buffer_);
-    depth_buffer_ = vkrndr::create_depth_buffer(vulkan_device_, extent);
+    depth_buffer_ = vkrndr::create_depth_buffer(vulkan_device_, extent, true);
 }
 
 void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
 {
-    vkCmdBindPipeline(command_buffer,
-        VK_PIPELINE_BIND_POINT_GRAPHICS,
-        pipeline_->pipeline);
-
     size_t const index_offset{vertex_count_ * sizeof(vertex)};
     VkDeviceSize const zero_offsets{0};
     vkCmdBindVertexBuffers(command_buffer,
@@ -528,7 +593,7 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
 
     vkCmdBindDescriptorSets(command_buffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
-        pipeline_->pipeline_layout,
+        outlined_piece_pipeline_->pipeline_layout,
         0,
         1,
         &frame_data_[current_frame_].descriptor_set_,
@@ -545,15 +610,69 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
     for (auto const& [transform_index, draw_mesh] :
         draw_meshes_ | std::views::take(used_pieces_) | std::views::enumerate)
     {
+        if (draw_mesh.type != piece_type::king)
+        {
+            vkCmdBindPipeline(command_buffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                piece_pipeline_->pipeline);
+        }
+        else
+        {
+            vkCmdBindPipeline(command_buffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                outlined_piece_pipeline_->pipeline);
+        }
         push_constants const constants{.color = generate_color(draw_mesh),
             .camera = camera_,
             .light_position = light_position_,
             .light_color = light_color_,
             .transform_index = cppext::narrow<int>(transform_index),
+            .outline_width = 0.0f,
             .use_texture = transform_index == 0};
 
         vkCmdPushConstants(command_buffer,
-            pipeline_->pipeline_layout,
+            outlined_piece_pipeline_->pipeline_layout,
+            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+            0,
+            sizeof(push_constants),
+            &constants);
+
+        auto const it{std::ranges::find_if(
+            meshes_,
+            [&draw_mesh](auto const& type)
+            { CPPEXT_SUPPRESS return draw_mesh.type == type; },
+            &mesh::type)};
+        assert(it != std::cend(meshes_));
+
+        vkCmdDrawIndexed(command_buffer,
+            it->index_count,
+            1,
+            vkrndr::count_cast(it->index_offset),
+            it->vertex_offset,
+            0);
+    }
+
+    vkCmdBindPipeline(command_buffer,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        outline_pipeline_->pipeline);
+    for (auto const& [transform_index, draw_mesh] :
+        draw_meshes_ | std::views::take(used_pieces_) | std::views::enumerate)
+    {
+        if (draw_mesh.type != piece_type::king)
+        {
+            continue;
+        }
+
+        push_constants const constants{.color = generate_color(draw_mesh),
+            .camera = camera_,
+            .light_position = light_position_,
+            .light_color = light_color_,
+            .transform_index = cppext::narrow<int>(transform_index),
+            .outline_width = 0.0025f,
+            .use_texture = transform_index == 0};
+
+        vkCmdPushConstants(command_buffer,
+            outlined_piece_pipeline_->pipeline_layout,
             VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             0,
             sizeof(push_constants),

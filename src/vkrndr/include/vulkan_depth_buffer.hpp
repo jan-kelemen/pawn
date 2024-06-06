@@ -12,7 +12,11 @@ namespace vkrndr
 
 namespace vkrndr
 {
-    vulkan_image create_depth_buffer(vulkan_device* device, VkExtent2D extent);
+    vulkan_image create_depth_buffer(vulkan_device* device,
+        VkExtent2D extent,
+        bool with_stencil_component);
+
+    [[nodiscard]] bool has_stencil_component(VkFormat format);
 } // namespace vkrndr
 
 #endif

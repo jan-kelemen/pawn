@@ -172,6 +172,10 @@ vkrndr::vulkan_pipeline vkrndr::vulkan_pipeline_builder::build()
     if (depth_stencil_)
     {
         rendering_create_info.depthAttachmentFormat = depth_format_;
+        if (depth_stencil_->stencilTestEnable)
+        {
+            rendering_create_info.stencilAttachmentFormat = depth_format_;
+        }
     }
 
     VkGraphicsPipelineCreateInfo create_info{};
@@ -274,22 +278,60 @@ vkrndr::vulkan_pipeline_builder& vkrndr::vulkan_pipeline_builder::with_culling(
 }
 
 vkrndr::vulkan_pipeline_builder&
-vkrndr::vulkan_pipeline_builder::with_depth_stencil(VkFormat depth_format)
+vkrndr::vulkan_pipeline_builder::with_depth_test(VkFormat depth_format)
 {
+    assert(
+        depth_format_ == VK_FORMAT_UNDEFINED || depth_format_ == depth_format);
+
     depth_format_ = depth_format;
 
-    VkPipelineDepthStencilStateCreateInfo depth_stencil{};
-    depth_stencil.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    VkPipelineDepthStencilStateCreateInfo depth_stencil{
+        depth_stencil_.value_or(VkPipelineDepthStencilStateCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthBoundsTestEnable = VK_FALSE,
+            .stencilTestEnable = VK_FALSE,
+            .front = {},
+            .back = {},
+            .minDepthBounds = 0.0f,
+            .maxDepthBounds = 1.0f,
+        })};
+
     depth_stencil.depthTestEnable = VK_TRUE;
     depth_stencil.depthWriteEnable = VK_TRUE;
     depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
-    depth_stencil.depthBoundsTestEnable = VK_FALSE;
-    depth_stencil.minDepthBounds = 0.0f;
-    depth_stencil.maxDepthBounds = 1.0f;
-    depth_stencil.stencilTestEnable = VK_FALSE;
-    depth_stencil.front = {};
-    depth_stencil.back = {};
+
+    depth_stencil_ = depth_stencil;
+
+    return *this;
+}
+
+vkrndr::vulkan_pipeline_builder&
+vkrndr::vulkan_pipeline_builder::with_stencil_test(VkFormat depth_format,
+    VkStencilOpState front,
+    VkStencilOpState back)
+{
+    assert(
+        depth_format_ == VK_FORMAT_UNDEFINED || depth_format_ == depth_format);
+
+    depth_format_ = depth_format;
+
+    VkPipelineDepthStencilStateCreateInfo depth_stencil{
+        depth_stencil_.value_or(VkPipelineDepthStencilStateCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthTestEnable = VK_FALSE,
+            .depthWriteEnable = VK_FALSE,
+            .depthCompareOp = VK_COMPARE_OP_LESS,
+            .depthBoundsTestEnable = VK_FALSE,
+            .stencilTestEnable = VK_FALSE,
+            .front = {},
+            .back = {},
+            .minDepthBounds = 0.0f,
+            .maxDepthBounds = 1.0f,
+        })};
+
+    depth_stencil.stencilTestEnable = VK_TRUE;
+    depth_stencil.front = front;
+    depth_stencil.back = back;
 
     depth_stencil_ = depth_stencil;
 

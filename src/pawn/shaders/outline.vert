@@ -24,15 +24,11 @@ layout(std140, binding = 0) readonly buffer TransformBuffer {
     Transform transforms[];
 } transformBuffer;
 
-layout(location = 0) out vec3 outNormal;
-layout(location = 1) out vec3 outFragmentPosition;
-layout(location = 2) out vec2 outTexCoordinate;
-
 void main() {
     Transform transform = transformBuffer.transforms[pushConsts.transformIndex];
-    gl_Position = transform.projection * transform.view * transform.model * vec4(inPosition.xyz, 1.0);
-    outFragmentPosition = vec3(transform.model * vec4(inPosition.xyz, 1.0));
-    outNormal = vec3(transform.model * vec4(inNormal.xyz, 1.0));
-    outTexCoordinate = inTexCoordinate;
+
+    // Extrude along normal
+	vec4 pos = vec4(inPosition.xyz + inNormal * pushConsts.outlineWidth, 1.0f);
+	gl_Position = transform.projection * transform.view * transform.model * pos;
 }
  

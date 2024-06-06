@@ -42,27 +42,51 @@ namespace
     }
 
     [[nodiscard]] VkFormat find_depth_format(
-        VkPhysicalDevice const physical_device)
+        VkPhysicalDevice const physical_device,
+        bool const with_stencil_component)
     {
-        constexpr std::array candidates{VK_FORMAT_D32_SFLOAT,
-            VK_FORMAT_D32_SFLOAT_S8_UINT,
-            VK_FORMAT_D24_UNORM_S8_UINT};
-        if (auto const format{find_supported_format(physical_device,
-                candidates,
-                VK_IMAGE_TILING_OPTIMAL,
-                VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)})
+        if (with_stencil_component)
         {
-            return *format;
+            constexpr std::array candidates{VK_FORMAT_D32_SFLOAT_S8_UINT,
+                VK_FORMAT_D24_UNORM_S8_UINT};
+            if (auto const format{find_supported_format(physical_device,
+                    candidates,
+                    VK_IMAGE_TILING_OPTIMAL,
+                    VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)})
+            {
+                return *format;
+            }
+        }
+        else
+        {
+            constexpr std::array candidates{VK_FORMAT_D32_SFLOAT_S8_UINT,
+                VK_FORMAT_D24_UNORM_S8_UINT};
+            if (auto const format{find_supported_format(physical_device,
+                    candidates,
+                    VK_IMAGE_TILING_OPTIMAL,
+                    VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)})
+            {
+                return *format;
+            }
         }
 
         throw std::runtime_error{"Unable to find suitable depth buffer format"};
     }
 } // namespace
 
-vkrndr::vulkan_image vkrndr::create_depth_buffer(vulkan_device* const device,
-    VkExtent2D const extent)
+[[nodiscard]]
+bool vkrndr::has_stencil_component(VkFormat format)
 {
-    VkFormat const depth_format{find_depth_format(device->physical)};
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
+        format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
+vkrndr::vulkan_image vkrndr::create_depth_buffer(vulkan_device* const device,
+    VkExtent2D const extent,
+    bool const with_stencil_component)
+{
+    VkFormat const depth_format{
+        find_depth_format(device->physical, with_stencil_component)};
     return create_image_and_view(device,
         extent,
         1,
