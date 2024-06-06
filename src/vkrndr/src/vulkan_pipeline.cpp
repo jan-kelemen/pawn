@@ -124,11 +124,12 @@ vkrndr::vulkan_pipeline vkrndr::vulkan_pipeline_builder::build()
     multisampling.minSampleShading = .2f;
     multisampling.rasterizationSamples = rasterization_samples_;
 
-    VkPipelineColorBlendAttachmentState color_blend_attachment{};
-    color_blend_attachment.blendEnable = VK_FALSE,
-    color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
-        VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
-        VK_COLOR_COMPONENT_A_BIT;
+    VkPipelineColorBlendAttachmentState const color_blend_attachment{
+        color_blending_.value_or(
+            VkPipelineColorBlendAttachmentState{.blendEnable = VK_FALSE,
+                .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+                    VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                    VK_COLOR_COMPONENT_A_BIT})};
 
     VkPipelineColorBlendStateCreateInfo color_blending{};
     color_blending.sType =
@@ -273,6 +274,15 @@ vkrndr::vulkan_pipeline_builder& vkrndr::vulkan_pipeline_builder::with_culling(
 {
     cull_mode_ = cull_mode;
     front_face_ = front_face;
+
+    return *this;
+}
+
+vkrndr::vulkan_pipeline_builder&
+vkrndr::vulkan_pipeline_builder::with_color_blending(
+    VkPipelineColorBlendAttachmentState const color_blending)
+{
+    color_blending_ = color_blending;
 
     return *this;
 }

@@ -319,6 +319,18 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
             .with_stencil_test(depth_buffer_.format,
                 outline_stencil_state,
                 outline_stencil_state)
+            .with_color_blending(VkPipelineColorBlendAttachmentState{
+                .blendEnable = VK_TRUE,
+                .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+                .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                .colorBlendOp = VK_BLEND_OP_ADD,
+                .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+                .alphaBlendOp = VK_BLEND_OP_ADD,
+                .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+                    VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                    VK_COLOR_COMPONENT_A_BIT,
+            })
             .build());
 
     using namespace std::string_view_literals;
@@ -458,11 +470,14 @@ void pawn::scene::detach_renderer()
         destroy(vulkan_device_, &texture_image_);
         vkDestroySampler(vulkan_device_->logical, texture_sampler_, nullptr);
 
+        destroy(vulkan_device_, outlined_piece_pipeline_.get());
+        outlined_piece_pipeline_.reset();
+
         destroy(vulkan_device_, outline_pipeline_.get());
         outline_pipeline_.reset();
 
-        destroy(vulkan_device_, outlined_piece_pipeline_.get());
-        outlined_piece_pipeline_.reset();
+        destroy(vulkan_device_, piece_pipeline_.get());
+        piece_pipeline_.reset();
 
         vkDestroyDescriptorSetLayout(vulkan_device_->logical,
             descriptor_set_layout_,
@@ -547,10 +562,7 @@ void pawn::scene::update()
 
 VkClearValue pawn::scene::clear_color() { return {{{1.f, .5f, .3f, 1.f}}}; }
 
-VkClearValue pawn::scene::clear_depth()
-{
-    return {.depthStencil = {1.0f, 255}};
-}
+VkClearValue pawn::scene::clear_depth() { return {.depthStencil = {1.0f, 0}}; }
 
 vkrndr::vulkan_image* pawn::scene::depth_image() { return &depth_buffer_; }
 
