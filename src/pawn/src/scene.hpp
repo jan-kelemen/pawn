@@ -36,13 +36,13 @@ namespace pawn
 {
     enum class piece_type : uint8_t
     {
+        none,
         rook,
         knight,
         bishop,
         queen,
         king,
-        pawn,
-        board
+        pawn
     };
 
     struct [[nodiscard]] board_piece final
@@ -155,12 +155,12 @@ namespace pawn
 
         uint32_t current_frame_{};
 
-        glm::fvec3 front_face_{-1.f, -1.f, -1.f};
+        glm::fvec3 front_face_{1.f, -1.f, 1.f};
         glm::fvec3 up_direction_{0, -1, 0};
         glm::fvec3 camera_{0, 0, 0};
         std::array<float, 3> projection_{0.5f, -0.4f, 0.4f};
 
-        glm::fvec3 light_position_{1.0f, 1.0f, 1.0f};
+        glm::fvec3 light_position_{-1.0f, 1.0f, 1.0f};
         glm::fvec3 light_color_{0.8f, 0.8f, 0.8f};
 
         uint8_t used_pieces_{};

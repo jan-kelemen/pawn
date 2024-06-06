@@ -157,3 +157,42 @@ TEST_CASE("uciok", "[uci]")
     CHECK(phrase_parse(iter, string.cend(), pawn::uciok(), space, uciok));
     CHECK(iter == string.cend());
 }
+
+TEST_CASE("bestmove", "[uci]")
+{
+    using namespace std::string_view_literals;
+
+    using boost::spirit::x3::ascii::space;
+
+    SECTION("with ponder")
+    {
+        auto const string{"bestmove e1e2 ponder e3e4"sv};
+        auto iter{string.cbegin()};
+
+        pawn::ast::bestmove bestmove;
+        CHECK(phrase_parse(iter,
+            string.cend(),
+            pawn::bestmove(),
+            space,
+            bestmove));
+        CHECK(iter == string.cend());
+        CHECK(bestmove.move == "e1e2");
+        CHECK(bestmove.ponder == "e3e4");
+    }
+
+    SECTION("without ponder")
+    {
+        auto const string{"bestmove e1e2"sv};
+        auto iter{string.cbegin()};
+
+        pawn::ast::bestmove bestmove;
+        CHECK(phrase_parse(iter,
+            string.cend(),
+            pawn::bestmove(),
+            space,
+            bestmove));
+        CHECK(iter == string.cend());
+        CHECK(bestmove.move == "e1e2");
+        CHECK(bestmove.ponder.empty());
+    }
+}

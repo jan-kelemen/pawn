@@ -10,6 +10,8 @@ BOOST_FUSION_ADAPT_STRUCT(pawn::ast::option, name, type, def, min_max, values);
 
 BOOST_FUSION_ADAPT_STRUCT(pawn::ast::uciok, dummy);
 
+BOOST_FUSION_ADAPT_STRUCT(pawn::ast::bestmove, move, ponder);
+
 namespace pawn::parser
 {
     namespace x3 = boost::spirit::x3;
@@ -19,6 +21,7 @@ namespace pawn::parser
     using context_type = x3::phrase_parse_context<x3::ascii::space_type>::type;
 
     using x3::attr;
+    using x3::alnum;
     using x3::graph;
     using x3::lit;
     using x3::int64;
@@ -29,7 +32,7 @@ namespace pawn::parser
 
     // id name Stockfish 16.1
     // id author the Stockfish developers (see AUTHORS file)
-    x3::rule<class id, ast::id> const id = "id";
+    x3::rule<class id, ast::id> const id{"id"};
 
     auto const id_def = lit("id") >>
         (string("name") | string("author")) >> lexeme[+(char_ - eol)];
@@ -57,7 +60,7 @@ namespace pawn::parser
     // option name SyzygyProbeLimit type spin default 7 min 0 max 7
     // option name EvalFile type string default nn-b1a57edbea57.nnue
     // option name EvalFileSmall type string default nn-baff1ede1f90.nnue
-    x3::rule<class option, ast::option> const option = "option";
+    x3::rule<class option, ast::option> const option{"option"};
 
     struct option_types_ : x3::symbols<ast::option_type>
     {
@@ -94,6 +97,16 @@ namespace pawn::parser
 
     BOOST_SPIRIT_INSTANTIATE(uciok_type, iterator_type, context_type);
 
+    // bestmove g1f3
+    x3::rule<class bestmove, ast::bestmove> const bestmove{"bestmove"};
+
+    auto const bestmove_def = lit("bestmove") >> lexeme[+alnum] >>
+        -(lit("ponder") >> lexeme[+alnum]);
+
+    BOOST_SPIRIT_DEFINE(bestmove);
+
+    BOOST_SPIRIT_INSTANTIATE(bestmove_type, iterator_type, context_type);
+
 } // namespace pawn::parser
 
 pawn::parser::id_type pawn::id() { return parser::id; }
@@ -101,3 +114,5 @@ pawn::parser::id_type pawn::id() { return parser::id; }
 pawn::parser::option_type pawn::option() { return parser::option; }
 
 pawn::parser::uciok_type pawn::uciok() { return parser::uciok; }
+
+pawn::parser::bestmove_type pawn::bestmove() { return parser::bestmove; }

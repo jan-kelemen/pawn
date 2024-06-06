@@ -266,7 +266,7 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
         std::pair{piece_type::queen, "piece_queen_white"sv},
         std::pair{piece_type::king, "piece_king_white"sv},
         std::pair{piece_type::knight, "piece_knight_white_01"sv},
-        std::pair{piece_type::board, "board"sv}};
+        std::pair{piece_type::none, "board"sv}};
 
     auto model{renderer->load_model("chess_set_2k.gltf")};
 
@@ -369,7 +369,7 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
             texture_image_.view);
     }
 
-    draw_meshes_[0] = to_board_peice(0, 0, mesh_color::none, piece_type::board);
+    draw_meshes_[0] = to_board_peice(0, 0, mesh_color::none, piece_type::none);
 
     for (auto [index, texture] : model->textures | std::views::enumerate)
     {
@@ -456,7 +456,7 @@ void pawn::scene::update()
                 auto model_matrix{it->local_matrix};
 
                 // Override translation component to real board position
-                if (draw_mesh.type != piece_type::board)
+                if (draw_mesh.type != piece_type::none)
                 {
                     model_matrix[3][0] = position.x;
                     model_matrix[3][2] = position.z;

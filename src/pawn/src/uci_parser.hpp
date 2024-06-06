@@ -16,7 +16,7 @@ namespace pawn::ast
         std::string value;
     };
 
-    enum option_type
+    enum option_type : uint8_t
     {
         check,
         spin,
@@ -38,6 +38,12 @@ namespace pawn::ast
     {
         bool dummy;
     };
+
+    struct [[nodiscard]] bestmove final
+    {
+        std::string move;
+        std::string ponder;
+    };
 } // namespace pawn::ast
 
 namespace pawn
@@ -54,6 +60,9 @@ namespace pawn
 
         using uciok_type = x3::rule<class uciok, ast::uciok>;
         BOOST_SPIRIT_DECLARE(uciok_type);
+
+        using bestmove_type = x3::rule<class bestmove, ast::bestmove>;
+        BOOST_SPIRIT_DECLARE(bestmove_type);
     } // namespace parser
 
     parser::id_type id();
@@ -61,4 +70,6 @@ namespace pawn
     parser::option_type option();
 
     parser::uciok_type uciok();
+
+    parser::bestmove_type bestmove();
 } // namespace pawn

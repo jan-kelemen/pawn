@@ -25,10 +25,9 @@ public:
     {
         using boost::spirit::x3::ascii::space;
 
-        input_ << "uci" << std::endl;
+        send_command("uci");
 
         std::string line;
-
         while (std::getline(output_, line))
         {
             boost::algorithm::trim(line);
@@ -58,7 +57,7 @@ public:
 
         if (child_.running())
         {
-            input_ << "quit" << std::endl;
+            send_command("quit");
             std::this_thread::sleep_for(10ms);
             if (child_.running())
             {
@@ -69,10 +68,48 @@ public:
     }
 
 public:
+    std::string next_move(std::string_view fenstring)
+    {
+        using boost::spirit::x3::ascii::space;
+
+        send_command(fmt::format("position fen {}", fenstring));
+        send_command("go movetime 1000");
+
+        std::string line;
+        while (std::getline(output_, line))
+        {
+            boost::algorithm::trim(line);
+            if (line.empty())
+            {
+                continue;
+            }
+            debug_output_.push_back(line);
+
+            std::string_view const view{line};
+            ast::bestmove bestmove;
+            if (phrase_parse(view.cbegin(),
+                    view.cend(),
+                    pawn::bestmove(),
+                    space,
+                    bestmove))
+            {
+                return std::move(bestmove.move);
+            }
+        }
+
+        return "";
+    }
+
     std::span<std::string const> debug_output() const
     {
         auto data{debug_output_.array_one()};
         return {data.first, data.second};
+    }
+
+private:
+    void send_command(std::string_view command)
+    {
+        input_ << command << std::endl;
     }
 
 private:
@@ -91,6 +128,11 @@ pawn::uci_engine::uci_engine(std::string_view command_line)
 pawn::uci_engine::uci_engine(uci_engine&&) noexcept = default;
 
 pawn::uci_engine::~uci_engine() = default;
+
+std::string pawn::uci_engine::next_move(std::string_view fenstring)
+{
+    return impl_->next_move(fenstring);
+}
 
 std::span<std::string const> pawn::uci_engine::debug_output() const
 {

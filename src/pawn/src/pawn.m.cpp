@@ -1,5 +1,4 @@
-#include <scene.hpp>
-#include <uci_engine.hpp>
+#include <chess_game.hpp>
 
 #include <sdl_window.hpp>
 #include <vulkan_context.hpp>
@@ -62,8 +61,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
         512,
         512};
 
-    pawn::uci_engine engine(argv[1]);
-    pawn::scene scene{engine};
+    pawn::chess_game game{argv[1]};
 
     auto context{vkrndr::create_context(&window, enable_validation_layers)};
     auto device{vkrndr::create_device(context)};
@@ -75,68 +73,39 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
             &swap_chain};
         renderer.set_imgui_layer(enable_validation_layers);
 
-        scene.attach_renderer(&device, &renderer);
+        game.attach_renderer(&device, &renderer);
 
         bool done{false};
         while (!done)
         {
             SDL_Event event;
-            while (SDL_PollEvent(&event) != 0)
+            if (SDL_WaitEvent(&event) == 0)
             {
-                if (enable_validation_layers)
-                {
-                    ImGui_ImplSDL2_ProcessEvent(&event);
-                }
+                continue;
+            }
 
-                if (is_quit_event(event, window.native_handle()))
-                {
-                    done = true;
-                }
+            if (enable_validation_layers)
+            {
+                ImGui_ImplSDL2_ProcessEvent(&event);
+            }
+
+            if (is_quit_event(event, window.native_handle()))
+            {
+                done = true;
             }
 
             renderer.begin_frame();
-            scene.begin_frame();
+            game.begin_frame();
 
-            std::initializer_list<pawn::piece_type> home_row{
-                pawn::piece_type::rook,
-                pawn::piece_type::knight,
-                pawn::piece_type::bishop,
-                pawn::piece_type::queen,
-                pawn::piece_type::king,
-                pawn::piece_type::bishop,
-                pawn::piece_type::knight,
-                pawn::piece_type::rook};
+            renderer.draw(game.render_scene());
 
-            for (auto const& [index, piece] : std::views::enumerate(home_row))
-            {
-                scene.add_piece(pawn::to_board_peice(0,
-                    cppext::narrow<uint8_t>(index),
-                    pawn::mesh_color::white,
-                    piece));
-                scene.add_piece(pawn::to_board_peice(1,
-                    cppext::narrow<uint8_t>(index),
-                    pawn::mesh_color::white,
-                    pawn::piece_type::pawn));
-                scene.add_piece(pawn::to_board_peice(6,
-                    cppext::narrow<uint8_t>(index),
-                    pawn::mesh_color::black,
-                    pawn::piece_type::pawn));
-                scene.add_piece(pawn::to_board_peice(7,
-                    cppext::narrow<uint8_t>(index),
-                    pawn::mesh_color::black,
-                    piece));
-            }
-
-            scene.update();
-            renderer.draw(&scene);
-
-            scene.end_frame();
+            game.end_frame();
             renderer.end_frame();
         }
 
         vkDeviceWaitIdle(device.logical);
 
-        scene.detach_renderer();
+        game.detach_renderer();
     }
     destroy(&device);
     destroy(&context);

@@ -20,6 +20,8 @@ namespace pawn
         ~uci_engine();
 
     public:
+        std::string next_move(std::string_view fenstring);
+
         std::span<std::string const> debug_output() const;
 
     public:
