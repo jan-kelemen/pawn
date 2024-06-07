@@ -2,6 +2,8 @@
 
 #include <cppext_numeric.hpp>
 
+#include <vulkan_renderer.hpp>
+
 #include <ranges>
 
 pawn::chess_game::chess_game(std::string_view engine_command_line)
@@ -13,6 +15,7 @@ pawn::chess_game::chess_game(std::string_view engine_command_line)
 void pawn::chess_game::attach_renderer(vkrndr::vulkan_device* device,
     vkrndr::vulkan_renderer* renderer)
 {
+    renderer_ = renderer;
     scene_.attach_renderer(device, renderer);
 }
 
@@ -36,22 +39,26 @@ void pawn::chess_game::begin_frame()
         scene_.add_piece(pawn::to_board_peice(0,
             cppext::narrow<uint8_t>(index),
             pawn::mesh_color::white,
-            piece));
+            piece,
+            piece == pawn::piece_type::queen));
         scene_.add_piece(pawn::to_board_peice(1,
             cppext::narrow<uint8_t>(index),
             pawn::mesh_color::white,
-            pawn::piece_type::pawn));
+            pawn::piece_type::pawn,
+            false));
         scene_.add_piece(pawn::to_board_peice(6,
             cppext::narrow<uint8_t>(index),
             pawn::mesh_color::black,
-            pawn::piece_type::pawn));
+            pawn::piece_type::pawn,
+            false));
         scene_.add_piece(pawn::to_board_peice(7,
             cppext::narrow<uint8_t>(index),
             pawn::mesh_color::black,
-            piece));
+            piece,
+            piece == pawn::piece_type::king));
     }
 
-    scene_.update();
+    scene_.update(camera_);
 }
 
 void pawn::chess_game::end_frame() { scene_.end_frame(); }

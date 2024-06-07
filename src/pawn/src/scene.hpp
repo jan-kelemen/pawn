@@ -34,6 +34,26 @@ namespace pawn
 
 namespace pawn
 {
+    class [[nodiscard]] orthographic_camera final
+    {
+    public:
+        [[nodiscard]] glm::fvec3 position() const;
+
+        [[nodiscard]] glm::fmat4 view_matrix() const;
+
+        [[nodiscard]] glm::fmat4 projection_matrix() const;
+
+        [[nodiscard]] float near_plane() const;
+
+        [[nodiscard]] float far_plane() const;
+
+    private:
+        glm::fvec3 front_face_{1.f, -1.f, 1.f};
+        glm::fvec3 up_direction_{0, -1, 0};
+        glm::fvec3 position_{0, 0, 0};
+        std::array<float, 3> projection_{0.5f, -0.4f, 0.4f};
+    };
+
     enum class piece_type : uint8_t
     {
         none,
@@ -51,6 +71,7 @@ namespace pawn
         uint8_t column : 3;
         uint8_t color : 2;
         piece_type type;
+        bool highlighted;
     };
 
     enum class mesh_color : uint8_t
@@ -63,11 +84,12 @@ namespace pawn
     [[nodiscard]] constexpr board_piece to_board_peice(uint8_t const row,
         uint8_t const column,
         mesh_color const color,
-        piece_type const type)
+        piece_type const type,
+        bool const highlighted)
     {
         DISABLE_WARNING_PUSH
         DISABLE_WARNING_CONVERSION
-        return {row, column, std::to_underlying(color), type};
+        return {row, column, std::to_underlying(color), type, highlighted};
         DISABLE_WARNING_POP
     }
 
@@ -105,7 +127,7 @@ namespace pawn
 
         void add_piece(board_piece piece);
 
-        void update();
+        void update(orthographic_camera const& camera);
 
     public: // vulkan_scene overrides
         [[nodiscard]] VkClearValue clear_color() override;
@@ -157,11 +179,7 @@ namespace pawn
 
         uint32_t current_frame_{};
 
-        glm::fvec3 front_face_{1.f, -1.f, 1.f};
-        glm::fvec3 up_direction_{0, -1, 0};
-        glm::fvec3 camera_{0, 0, 0};
-        std::array<float, 3> projection_{0.5f, -0.4f, 0.4f};
-
+        glm::fvec3 camera_position_{0.0f, 0.0f, 0.0f};
         glm::fvec3 light_position_{-1.0f, 1.0f, 1.0f};
         glm::fvec3 light_color_{0.8f, 0.8f, 0.8f};
 

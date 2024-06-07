@@ -84,14 +84,15 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
                 continue;
             }
 
-            if (enable_validation_layers)
+            bool event_handled{false};
+            if (!event_handled && enable_validation_layers)
             {
                 ImGui_ImplSDL2_ProcessEvent(&event);
             }
-
-            if (is_quit_event(event, window.native_handle()))
+            if (!event_handled && is_quit_event(event, window.native_handle()))
             {
                 done = true;
+                continue;
             }
 
             renderer.begin_frame();

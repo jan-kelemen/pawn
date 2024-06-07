@@ -21,7 +21,7 @@ namespace pawn
         ~chess_game() = default;
 
     public:
-        vkrndr::vulkan_scene* render_scene() { return &scene_; }
+        [[nodiscard]] vkrndr::vulkan_scene* render_scene() { return &scene_; }
 
         void attach_renderer(vkrndr::vulkan_device* device,
             vkrndr::vulkan_renderer* renderer);
@@ -39,7 +39,9 @@ namespace pawn
 
     private:
         uci_engine engine_;
+        orthographic_camera camera_;
         scene scene_;
+        vkrndr::vulkan_renderer* renderer_{nullptr};
     };
 } // namespace pawn
 

@@ -230,6 +230,34 @@ namespace
     }
 } // namespace
 
+glm::fvec3 pawn::orthographic_camera::position() const { return front_face_; }
+
+glm::fmat4 pawn::orthographic_camera::view_matrix() const
+{
+    return glm::lookAt(position_, position_ + front_face_, up_direction_);
+}
+
+glm::fmat4 pawn::orthographic_camera::projection_matrix() const
+{
+    // https://computergraphics.stackexchange.com/a/13809
+    return glm::orthoRH_ZO(position_.x - projection_[0],
+        position_.x + projection_[0],
+        position_.y - projection_[0],
+        position_.y + projection_[0],
+        near_plane(),
+        far_plane());
+}
+
+float pawn::orthographic_camera::near_plane() const
+{
+    return position_.z + projection_[1];
+}
+
+float pawn::orthographic_camera::far_plane() const
+{
+    return position_.z + projection_[2];
+}
+
 pawn::scene::scene(uci_engine const& engine) : engine_{&engine} {};
 
 pawn::scene::~scene() = default;
@@ -444,7 +472,8 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
             texture_image_.view);
     }
 
-    draw_meshes_[0] = to_board_peice(0, 0, mesh_color::none, piece_type::none);
+    draw_meshes_[0] =
+        to_board_peice(0, 0, mesh_color::none, piece_type::none, false);
 
     for (auto [index, texture] : model->textures | std::views::enumerate)
     {
@@ -503,24 +532,19 @@ void pawn::scene::add_piece(board_piece piece)
     draw_meshes_[used_pieces_++] = piece;
 }
 
-void pawn::scene::update()
+void pawn::scene::update(orthographic_camera const& camera)
 {
+    std::stable_partition(draw_meshes_.begin(),
+        std::next(draw_meshes_.begin(), used_pieces_),
+        [](auto const& piece) { return !piece.highlighted; });
+
+    camera_position_ = camera.position();
+
     {
         vkrndr::mapped_memory uniform_map{vkrndr::map_memory(vulkan_device_,
             vertex_uniform_buffer_.memory,
             sizeof(transform) * draw_meshes_.size(),
             current_frame_ * sizeof(transform) * draw_meshes_.size())};
-
-        auto const view_matrix{
-            glm::lookAt(camera_, camera_ + front_face_, up_direction_)};
-
-        // https://computergraphics.stackexchange.com/a/13809
-        auto const projection_matrix{glm::orthoRH_ZO(camera_.x - projection_[0],
-            camera_.x + projection_[0],
-            camera_.y - projection_[0],
-            camera_.y + projection_[0],
-            camera_.z + projection_[1],
-            camera_.z + projection_[2])};
 
         std::ranges::transform(draw_meshes_ | std::views::take(used_pieces_),
             uniform_map.as<transform>(),
@@ -552,8 +576,8 @@ void pawn::scene::update()
                 }
 
                 return transform{.model = model_matrix,
-                    .view = view_matrix,
-                    .projection = projection_matrix};
+                    .view = camera.view_matrix(),
+                    .projection = camera.projection_matrix()};
             });
 
         unmap_memory(vulkan_device_, &uniform_map);
@@ -612,130 +636,81 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
         0,
         nullptr);
 
-    auto const generate_color = [](board_piece draw_mesh)
+    auto const render_mesh = [this](int64_t index,
+                                 pawn::board_piece const& piece,
+                                 VkCommandBuffer command_buffer)
     {
-        return (draw_mesh.color == std::to_underlying(mesh_color::black))
-            ? glm::fvec4{0.1f, 0.1f, 0.1f, 1.0f}
-            : glm::fvec4{0.9f, 0.9f, 0.9f, 1.0f};
+        auto const generate_color = [](board_piece const& draw_mesh)
+        {
+            return (draw_mesh.color == std::to_underlying(mesh_color::black))
+                ? glm::fvec4{0.1f, 0.1f, 0.1f, 1.0f}
+                : glm::fvec4{0.9f, 0.9f, 0.9f, 1.0f};
+        };
+
+        push_constants const constants{.color = generate_color(piece),
+            .camera = camera_position_,
+            .light_position = light_position_,
+            .light_color = light_color_,
+            .transform_index = cppext::narrow<int>(index),
+            .outline_width = 0.0025f,
+            .use_texture = index == 0};
+
+        vkCmdPushConstants(command_buffer,
+            outlined_piece_pipeline_->pipeline_layout,
+            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+            0,
+            sizeof(push_constants),
+            &constants);
+
+        auto const it{std::ranges::find_if(
+            meshes_,
+            [&piece](auto const& type)
+            { CPPEXT_SUPPRESS return piece.type == type; },
+            &mesh::type)};
+        assert(it != std::cend(meshes_));
+
+        vkCmdDrawIndexed(command_buffer,
+            it->index_count,
+            1,
+            vkrndr::count_cast(it->index_offset),
+            it->vertex_offset,
+            0);
     };
+
+    vkCmdBindPipeline(command_buffer,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        piece_pipeline_->pipeline);
+    for (auto const& [transform_index, draw_mesh] :
+        draw_meshes_ | std::views::take(used_pieces_) | std::views::enumerate)
+    {
+        if (!draw_mesh.highlighted)
+        {
+            render_mesh(transform_index, draw_mesh, command_buffer);
+        }
+    }
 
     for (auto const& [transform_index, draw_mesh] :
         draw_meshes_ | std::views::take(used_pieces_) | std::views::enumerate)
     {
-        if (draw_mesh.type != piece_type::king)
-        {
-            vkCmdBindPipeline(command_buffer,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                piece_pipeline_->pipeline);
-        }
-        else
+        if (draw_mesh.highlighted)
         {
             vkCmdBindPipeline(command_buffer,
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                 outlined_piece_pipeline_->pipeline);
+
+            render_mesh(transform_index, draw_mesh, command_buffer);
+
+            vkCmdBindPipeline(command_buffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                outline_pipeline_->pipeline);
+
+            render_mesh(transform_index, draw_mesh, command_buffer);
         }
-        push_constants const constants{.color = generate_color(draw_mesh),
-            .camera = camera_,
-            .light_position = light_position_,
-            .light_color = light_color_,
-            .transform_index = cppext::narrow<int>(transform_index),
-            .outline_width = 0.0f,
-            .use_texture = transform_index == 0};
-
-        vkCmdPushConstants(command_buffer,
-            outlined_piece_pipeline_->pipeline_layout,
-            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-            0,
-            sizeof(push_constants),
-            &constants);
-
-        auto const it{std::ranges::find_if(
-            meshes_,
-            [&draw_mesh](auto const& type)
-            { CPPEXT_SUPPRESS return draw_mesh.type == type; },
-            &mesh::type)};
-        assert(it != std::cend(meshes_));
-
-        vkCmdDrawIndexed(command_buffer,
-            it->index_count,
-            1,
-            vkrndr::count_cast(it->index_offset),
-            it->vertex_offset,
-            0);
-    }
-
-    vkCmdBindPipeline(command_buffer,
-        VK_PIPELINE_BIND_POINT_GRAPHICS,
-        outline_pipeline_->pipeline);
-    for (auto const& [transform_index, draw_mesh] :
-        draw_meshes_ | std::views::take(used_pieces_) | std::views::enumerate)
-    {
-        if (draw_mesh.type != piece_type::king)
-        {
-            continue;
-        }
-
-        push_constants const constants{.color = generate_color(draw_mesh),
-            .camera = camera_,
-            .light_position = light_position_,
-            .light_color = light_color_,
-            .transform_index = cppext::narrow<int>(transform_index),
-            .outline_width = 0.0025f,
-            .use_texture = transform_index == 0};
-
-        vkCmdPushConstants(command_buffer,
-            outlined_piece_pipeline_->pipeline_layout,
-            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-            0,
-            sizeof(push_constants),
-            &constants);
-
-        auto const it{std::ranges::find_if(
-            meshes_,
-            [&draw_mesh](auto const& type)
-            { CPPEXT_SUPPRESS return draw_mesh.type == type; },
-            &mesh::type)};
-        assert(it != std::cend(meshes_));
-
-        vkCmdDrawIndexed(command_buffer,
-            it->index_count,
-            1,
-            vkrndr::count_cast(it->index_offset),
-            it->vertex_offset,
-            0);
     }
 }
 
 void pawn::scene::draw_imgui()
 {
-    ImGui::Begin("Camera");
-    ImGui::SliderFloat3("Camera", glm::value_ptr(camera_), -10.f, 10.f);
-    ImGui::SliderFloat3("Front face", glm::value_ptr(front_face_), -10.f, 10.f);
-    ImGui::SliderFloat3("Up direction",
-        glm::value_ptr(up_direction_),
-        -10.f,
-        10.f);
-    ImGui::End();
-
-    ImGui::Begin("Projection");
-    // NOLINTNEXTLINE(readability-container-data-pointer)
-    ImGui::SliderFloat("Zoom", &projection_[0], 0, 10.f);
-    ImGui::SliderFloat("Near", &projection_[1], -10.f, 10.f);
-    ImGui::SliderFloat("Far", &projection_[2], -10.f, 10.f);
-    ImGui::End();
-
-    ImGui::Begin("Eye");
-    ImGui::Value("Eye x", camera_.x);
-    ImGui::Value("Eye y", camera_.y);
-    ImGui::Value("Eye z", camera_.z);
-    ImGui::End();
-
-    ImGui::Begin("Center");
-    ImGui::Value("Center x", (camera_ + front_face_).x);
-    ImGui::Value("Center y", (camera_ + front_face_).y);
-    ImGui::Value("Center z", (camera_ + front_face_).z);
-    ImGui::End();
-
     ImGui::Begin("Light");
     ImGui::SliderFloat3("Position",
         glm::value_ptr(light_position_),
