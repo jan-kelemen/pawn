@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <span>
+#include <string>
 #include <string_view>
 
 namespace pawn
@@ -10,7 +11,7 @@ namespace pawn
     class [[nodiscard]] uci_engine final
     {
     public:
-        uci_engine(std::string_view command_line);
+        explicit uci_engine(std::string_view command_line);
 
         uci_engine(uci_engine const&) = delete;
 
@@ -20,9 +21,9 @@ namespace pawn
         ~uci_engine();
 
     public:
-        std::string next_move(std::string_view fenstring);
+        [[nodiscard]] std::string next_move(std::string_view fenstring);
 
-        std::span<std::string const> debug_output() const;
+        [[nodiscard]] std::span<std::string const> debug_output() const;
 
     public:
         uci_engine& operator=(uci_engine const&) = delete;

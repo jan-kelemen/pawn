@@ -6,12 +6,19 @@
 
 #include <string_view>
 
+namespace vkrndr
+{
+    struct vulkan_device;
+    class vulkan_renderer;
+    class vulkan_scene;
+} // namespace vkrndr
+
 namespace pawn
 {
     class [[nodiscard]] chess_game final
     {
     public:
-        chess_game(std::string_view engine_command_line);
+        explicit chess_game(std::string_view engine_command_line);
 
         chess_game(chess_game const&) = delete;
 
@@ -41,7 +48,6 @@ namespace pawn
         uci_engine engine_;
         orthographic_camera camera_;
         scene scene_;
-        vkrndr::vulkan_renderer* renderer_{nullptr};
     };
 } // namespace pawn
 

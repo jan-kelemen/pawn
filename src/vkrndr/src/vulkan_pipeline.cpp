@@ -3,8 +3,11 @@
 #include <vulkan_device.hpp>
 #include <vulkan_utility.hpp>
 
+#include <cppext_pragma_warning.hpp>
+
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -124,12 +127,15 @@ vkrndr::vulkan_pipeline vkrndr::vulkan_pipeline_builder::build()
     multisampling.minSampleShading = .2f;
     multisampling.rasterizationSamples = rasterization_samples_;
 
+    DISABLE_WARNING_PUSH
+    DISABLE_WARNING_MISSING_FIELD_INITIALIZERS
     VkPipelineColorBlendAttachmentState const color_blend_attachment{
         color_blending_.value_or(
             VkPipelineColorBlendAttachmentState{.blendEnable = VK_FALSE,
                 .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
                     VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
                     VK_COLOR_COMPONENT_A_BIT})};
+    DISABLE_WARNING_POP
 
     VkPipelineColorBlendStateCreateInfo color_blending{};
     color_blending.sType =
@@ -295,6 +301,8 @@ vkrndr::vulkan_pipeline_builder::with_depth_test(VkFormat depth_format)
 
     depth_format_ = depth_format;
 
+    DISABLE_WARNING_PUSH
+    DISABLE_WARNING_MISSING_FIELD_INITIALIZERS
     VkPipelineDepthStencilStateCreateInfo depth_stencil{
         depth_stencil_.value_or(VkPipelineDepthStencilStateCreateInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
@@ -305,6 +313,7 @@ vkrndr::vulkan_pipeline_builder::with_depth_test(VkFormat depth_format)
             .minDepthBounds = 0.0f,
             .maxDepthBounds = 1.0f,
         })};
+    DISABLE_WARNING_POP
 
     depth_stencil.depthTestEnable = VK_TRUE;
     depth_stencil.depthWriteEnable = VK_TRUE;
@@ -325,6 +334,8 @@ vkrndr::vulkan_pipeline_builder::with_stencil_test(VkFormat depth_format,
 
     depth_format_ = depth_format;
 
+    DISABLE_WARNING_PUSH
+    DISABLE_WARNING_MISSING_FIELD_INITIALIZERS
     VkPipelineDepthStencilStateCreateInfo depth_stencil{
         depth_stencil_.value_or(VkPipelineDepthStencilStateCreateInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
@@ -338,6 +349,7 @@ vkrndr::vulkan_pipeline_builder::with_stencil_test(VkFormat depth_format,
             .minDepthBounds = 0.0f,
             .maxDepthBounds = 1.0f,
         })};
+    DISABLE_WARNING_POP
 
     depth_stencil.stencilTestEnable = VK_TRUE;
     depth_stencil.front = front;

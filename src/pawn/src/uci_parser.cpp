@@ -1,16 +1,21 @@
 #include <uci_parser.hpp>
 
-#include <boost/fusion/include/adapt_struct.hpp>
+#include <boost/fusion/adapted/std_pair.hpp> // IWYU pragma: keep
+#include <boost/fusion/include/adapt_struct.hpp> // IWYU pragma: keep
+#include <boost/fusion/include/std_pair.hpp> // IWYU pragma: keep
 
 #include <string_view>
 
+// IWYU pragma: no_include <boost/preprocessor.hpp>
+// IWYU pragma: no_include <boost/mpl/aux_/preprocessor/is_seq.hpp>
+
 BOOST_FUSION_ADAPT_STRUCT(pawn::ast::id, key, value)
 
-BOOST_FUSION_ADAPT_STRUCT(pawn::ast::option, name, type, def, min_max, values);
+BOOST_FUSION_ADAPT_STRUCT(pawn::ast::option, name, type, def, min_max, values)
 
-BOOST_FUSION_ADAPT_STRUCT(pawn::ast::uciok, dummy);
+BOOST_FUSION_ADAPT_STRUCT(pawn::ast::uciok, dummy)
 
-BOOST_FUSION_ADAPT_STRUCT(pawn::ast::bestmove, move, ponder);
+BOOST_FUSION_ADAPT_STRUCT(pawn::ast::bestmove, move, ponder)
 
 namespace pawn::parser
 {
@@ -32,14 +37,15 @@ namespace pawn::parser
 
     // id name Stockfish 16.1
     // id author the Stockfish developers (see AUTHORS file)
+    // NOLINTNEXTLINE(readability-identifier-length)
     x3::rule<class id, ast::id> const id{"id"};
 
     auto const id_def = lit("id") >>
         (string("name") | string("author")) >> lexeme[+(char_ - eol)];
 
-    BOOST_SPIRIT_DEFINE(id);
+    BOOST_SPIRIT_DEFINE(id)
 
-    BOOST_SPIRIT_INSTANTIATE(id_type, iterator_type, context_type);
+    BOOST_SPIRIT_INSTANTIATE(id_type, iterator_type, context_type)
 
     // option name Debug Log File type string default
     // option name Threads type spin default 1 min 1 max 1024
@@ -76,7 +82,7 @@ namespace pawn::parser
             ;
             // clang-format on
         }
-    } option_types;
+    } const option_types;
 
     auto const option_def = lit("option") >>
         lit("name") >> lexeme[+(char_ - lit(" type"))] >>
@@ -84,18 +90,18 @@ namespace pawn::parser
         -(lit("min") >> int64 >> lit("max") >> int64) >>
         *(lit("var") >> lexeme[+graph]);
 
-    BOOST_SPIRIT_DEFINE(option);
+    BOOST_SPIRIT_DEFINE(option)
 
-    BOOST_SPIRIT_INSTANTIATE(option_type, iterator_type, context_type);
+    BOOST_SPIRIT_INSTANTIATE(option_type, iterator_type, context_type)
 
     // uciok
     x3::rule<class uciok, ast::uciok> const uciok{"uciok"};
 
     auto const uciok_def = lit("uciok") >> attr(true);
 
-    BOOST_SPIRIT_DEFINE(uciok);
+    BOOST_SPIRIT_DEFINE(uciok)
 
-    BOOST_SPIRIT_INSTANTIATE(uciok_type, iterator_type, context_type);
+    BOOST_SPIRIT_INSTANTIATE(uciok_type, iterator_type, context_type)
 
     // bestmove g1f3
     x3::rule<class bestmove, ast::bestmove> const bestmove{"bestmove"};
@@ -103,9 +109,9 @@ namespace pawn::parser
     auto const bestmove_def = lit("bestmove") >> lexeme[+alnum] >>
         -(lit("ponder") >> lexeme[+alnum]);
 
-    BOOST_SPIRIT_DEFINE(bestmove);
+    BOOST_SPIRIT_DEFINE(bestmove)
 
-    BOOST_SPIRIT_INSTANTIATE(bestmove_type, iterator_type, context_type);
+    BOOST_SPIRIT_INSTANTIATE(bestmove_type, iterator_type, context_type)
 
 } // namespace pawn::parser
 

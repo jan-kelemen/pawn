@@ -5,20 +5,24 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/circular_buffer.hpp>
 #define BOOST_PROCESS_USE_STD_FS
-#include <boost/process.hpp>
+#include <boost/process/child.hpp>
+#include <boost/process/io.hpp>
+#include <boost/process/pipe.hpp>
 #include <boost/spirit/home/x3.hpp>
 
-#include <spdlog/spdlog.h>
+#include <fmt/core.h>
 
+#include <chrono>
 #include <iostream>
 #include <thread>
+#include <utility>
 
 namespace bp = boost::process;
 
 class [[nodiscard]] pawn::uci_engine::impl final
 {
 public:
-    impl(std::string_view command_line)
+    explicit impl(std::string_view command_line)
         : child_{command_line.data(),
               bp::std_out > output_,
               bp::std_in < input_}
@@ -38,7 +42,7 @@ public:
             debug_output_.push_back(line);
 
             std::string_view const view{line};
-            ast::uciok uciok;
+            ast::uciok uciok; // NOLINT
             if (phrase_parse(view.cbegin(),
                     view.cend(),
                     pawn::uciok(),
@@ -49,6 +53,10 @@ public:
             }
         }
     }
+
+    impl(impl const&) = delete;
+
+    impl(impl&&) noexcept = delete;
 
 public:
     ~impl()
@@ -68,7 +76,7 @@ public:
     }
 
 public:
-    std::string next_move(std::string_view fenstring)
+    [[nodiscard]] std::string next_move(std::string_view fenstring)
     {
         using boost::spirit::x3::ascii::space;
 
@@ -86,7 +94,7 @@ public:
             debug_output_.push_back(line);
 
             std::string_view const view{line};
-            ast::bestmove bestmove;
+            ast::bestmove bestmove; // NOLINT
             if (phrase_parse(view.cbegin(),
                     view.cend(),
                     pawn::bestmove(),
@@ -100,15 +108,21 @@ public:
         return "";
     }
 
-    std::span<std::string const> debug_output() const
+    [[nodiscard]] std::span<std::string const> debug_output() const
     {
         auto data{debug_output_.array_one()};
         return {data.first, data.second};
     }
 
+public:
+    impl& operator=(impl const&) = delete;
+
+    impl& operator=(impl&&) noexcept = delete;
+
 private:
     void send_command(std::string_view command)
     {
+        // NOLINTNEXTLINE(performance-avoid-endl)
         input_ << command << std::endl;
     }
 

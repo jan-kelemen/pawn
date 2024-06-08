@@ -6,8 +6,6 @@
 #include <vulkan_renderer.hpp>
 #include <vulkan_swap_chain.hpp>
 
-#include <cppext_numeric.hpp>
-
 #include <imgui_impl_sdl2.h>
 
 #include <SDL2/SDL.h>
@@ -16,9 +14,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <cstdint>
 #include <cstdlib>
-#include <ranges>
 
 // IWYU pragma: no_include <fmt/core.h>
 // IWYU pragma: no_include <spdlog/common.h>
@@ -84,12 +80,12 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
                 continue;
             }
 
-            bool event_handled{false};
-            if (!event_handled && enable_validation_layers)
+            if (enable_validation_layers)
             {
                 ImGui_ImplSDL2_ProcessEvent(&event);
             }
-            if (!event_handled && is_quit_event(event, window.native_handle()))
+
+            if (is_quit_event(event, window.native_handle()))
             {
                 done = true;
                 continue;

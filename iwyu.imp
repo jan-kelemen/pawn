@@ -68,5 +68,12 @@
   { include: [ "<glm/detail/func_geometric.inl>", private, "<glm/geometric.hpp>", public ] },
 
   # freetype aliases
-  { "include": ["@<freetype/.*>", "private", "<ft2build.h>", "public"] }
+  { "include": ["@<freetype/.*>", private, "<ft2build.h>", public] },
+
+  # boost aliases
+  { include: ["@<boost/fusion/adapted/struct/.*>", private, "<boost/fusion/include/adapt_struct.hpp>", public] },
+  { include: ["<boost/process/detail/child_decl.hpp>", private, "<boost/process/child.hpp>", public] },
+  { include: ["@<boost/preprocessor/.*>", private, "<boost/preprocessor.hpp>", public] },
+  { include: ["@<boost/spirit/home/support/.*>", public, "<boost/spirit/home/x3.hpp>", public] },
+  { include: ["@<boost/spirit/home/x3/.*>", public, "<boost/spirit/home/x3.hpp>", public] },
 ]

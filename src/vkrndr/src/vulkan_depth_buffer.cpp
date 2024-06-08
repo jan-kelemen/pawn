@@ -59,7 +59,8 @@ namespace
         }
         else
         {
-            constexpr std::array candidates{VK_FORMAT_D32_SFLOAT_S8_UINT,
+            constexpr std::array candidates{VK_FORMAT_D32_SFLOAT,
+                VK_FORMAT_D32_SFLOAT_S8_UINT,
                 VK_FORMAT_D24_UNORM_S8_UINT};
             if (auto const format{find_supported_format(physical_device,
                     candidates,

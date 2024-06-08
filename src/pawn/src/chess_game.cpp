@@ -1,9 +1,12 @@
 #include <chess_game.hpp>
 
+#include <scene.hpp>
+#include <uci_engine.hpp>
+
 #include <cppext_numeric.hpp>
 
-#include <vulkan_renderer.hpp>
-
+#include <cstdint>
+#include <initializer_list>
 #include <ranges>
 
 pawn::chess_game::chess_game(std::string_view engine_command_line)
@@ -15,7 +18,6 @@ pawn::chess_game::chess_game(std::string_view engine_command_line)
 void pawn::chess_game::attach_renderer(vkrndr::vulkan_device* device,
     vkrndr::vulkan_renderer* renderer)
 {
-    renderer_ = renderer;
     scene_.attach_renderer(device, renderer);
 }
 

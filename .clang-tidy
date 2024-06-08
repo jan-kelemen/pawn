@@ -34,3 +34,5 @@ CheckOptions:
     value: 'rv|ec|it'
   - key: readability-implicit-bool-conversion.AllowPointerConditions
     value: true
+  - key: readability-implicit-bool-conversion.AllowIntegerConditions
+    value: true

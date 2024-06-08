@@ -1,5 +1,3 @@
-#include <boost/fusion/adapted/std_pair.hpp>
-#include <boost/fusion/include/std_pair.hpp>
 #include <boost/optional/optional.hpp>
 #include <boost/spirit/home/x3.hpp>
 
@@ -7,6 +5,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+// IWYU pragma: no_include <boost/preprocessor.hpp>
 
 namespace pawn::ast
 {
@@ -48,22 +48,25 @@ namespace pawn::ast
 
 namespace pawn
 {
+    // NOLINTBEGIN(bugprone-forward-declaration-namespace)
     namespace parser
     {
         namespace x3 = boost::spirit::x3;
 
         using id_type = x3::rule<class id, ast::id>;
-        BOOST_SPIRIT_DECLARE(id_type);
+        BOOST_SPIRIT_DECLARE(id_type)
 
         using option_type = x3::rule<class option, ast::option>;
-        BOOST_SPIRIT_DECLARE(option_type);
+        BOOST_SPIRIT_DECLARE(option_type)
 
         using uciok_type = x3::rule<class uciok, ast::uciok>;
-        BOOST_SPIRIT_DECLARE(uciok_type);
+        BOOST_SPIRIT_DECLARE(uciok_type)
 
         using bestmove_type = x3::rule<class bestmove, ast::bestmove>;
-        BOOST_SPIRIT_DECLARE(bestmove_type);
+        BOOST_SPIRIT_DECLARE(bestmove_type)
     } // namespace parser
+
+    // NOLINTEND(bugprone-forward-declaration-namespace)
 
     parser::id_type id();
 

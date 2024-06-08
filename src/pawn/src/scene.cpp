@@ -37,6 +37,7 @@
 #include <optional>
 #include <ranges>
 #include <span>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -249,7 +250,7 @@ float pawn::orthographic_camera::far_plane() const
     return position_.z + projection_[2];
 }
 
-pawn::scene::scene(uci_engine const& engine) : engine_{&engine} {};
+pawn::scene::scene(uci_engine const& engine) : engine_{&engine} { }
 
 pawn::scene::~scene() = default;
 
@@ -548,15 +549,21 @@ void pawn::scene::update(orthographic_camera const& camera)
                     &mesh::type)};
                 assert(it != std::cend(meshes_));
 
-                auto model_matrix {
-                    glm::scale(it->local_matrix, glm::vec3(17.0f, 17.0f, 17.0f))};
+                auto model_matrix{glm::scale(it->local_matrix,
+                    glm::vec3(17.0f, 17.0f, 17.0f))};
 
                 // Override translation component to real board position
                 if (draw_mesh.type != piece_type::none)
                 {
-                    model_matrix[3][0] = 4 - draw_mesh.row - 0.5f;
+                    model_matrix[3][0] = draw_mesh.column - 3.5f;
                     model_matrix[3][1] = 0.289f;
-                    model_matrix[3][2] = 4 - draw_mesh.column - 0.5f;
+                    model_matrix[3][2] = draw_mesh.row - 3.5f;
+                }
+                else
+                {
+                    model_matrix = glm::rotate(model_matrix,
+                        glm::radians(90.0f),
+                        glm::fvec3(0, 1, 0));
                 }
 
                 // Rotate black pieces toward center of board
@@ -645,7 +652,7 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
             .light_color = light_color_,
             .transform_index = cppext::narrow<int>(index),
             .outline_width = 0.0025f,
-            .use_texture = index == 0};
+            .use_texture = static_cast<uint32_t>(index == 0)};
 
         vkCmdPushConstants(command_buffer,
             outlined_piece_pipeline_->pipeline_layout,
@@ -714,7 +721,8 @@ void pawn::scene::draw_imgui()
     ImGui::Begin("Engine debug");
     for (std::string const& line : engine_->debug_output())
     {
-        ImGui::Text(line.c_str());
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
+        ImGui::Text("%s", line.c_str());
     }
     ImGui::End();
 }

@@ -106,7 +106,7 @@ namespace pawn
     class [[nodiscard]] scene final : public vkrndr::vulkan_scene
     {
     public: // Construction
-        scene(uci_engine const& engine);
+        explicit scene(uci_engine const& engine);
 
         scene(scene const&) = delete;
 
