@@ -2,7 +2,6 @@
 #include <uci_engine.hpp>
 
 #include <gltf_manager.hpp>
-#include <utility>
 #include <vulkan_buffer.hpp>
 #include <vulkan_depth_buffer.hpp>
 #include <vulkan_descriptors.hpp>
@@ -39,6 +38,7 @@
 #include <ranges>
 #include <span>
 #include <string_view>
+#include <utility>
 
 // IWYU pragma: no_include <glm/detail/func_trigonometric.inl>
 // IWYU pragma: no_include <glm/detail/qualifier.hpp>
@@ -218,15 +218,6 @@ namespace
             vkCreateSampler(device->logical, &sampler_info, nullptr, &rv));
 
         return rv;
-    }
-
-    [[nodiscard]] constexpr glm::fvec3 calculate_position(
-        pawn::board_piece piece)
-    {
-        constexpr float center{0.028944039717316628};
-        return glm::fvec3{center + (float(piece.column) - 4) * center * 2,
-            0,
-            center + (float(piece.row) - 4) * center * 2};
     }
 } // namespace
 
@@ -557,14 +548,15 @@ void pawn::scene::update(orthographic_camera const& camera)
                     &mesh::type)};
                 assert(it != std::cend(meshes_));
 
-                auto const position{calculate_position(draw_mesh)};
-                auto model_matrix{it->local_matrix};
+                auto model_matrix {
+                    glm::scale(it->local_matrix, glm::vec3(17.0f, 17.0f, 17.0f))};
 
                 // Override translation component to real board position
                 if (draw_mesh.type != piece_type::none)
                 {
-                    model_matrix[3][0] = position.x;
-                    model_matrix[3][2] = position.z;
+                    model_matrix[3][0] = 4 - draw_mesh.row - 0.5f;
+                    model_matrix[3][1] = 0.289f;
+                    model_matrix[3][2] = 4 - draw_mesh.column - 0.5f;
                 }
 
                 // Rotate black pieces toward center of board
