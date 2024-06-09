@@ -1,11 +1,13 @@
 #ifndef PAWN_SCENE_INLCUDED
 #define PAWN_SCENE_INLCUDED
 
+#include <chess.hpp>
+
+#include <cppext_pragma_warning.hpp>
+
 #include <vulkan_buffer.hpp>
 #include <vulkan_image.hpp>
 #include <vulkan_scene.hpp>
-
-#include <cppext_pragma_warning.hpp>
 
 #include <glm/fwd.hpp>
 #include <glm/mat4x4.hpp> // IWYU pragma: keep
@@ -54,18 +56,7 @@ namespace pawn
         std::array<float, 3> projection_{10.f, -8.0f, 8.0f};
     };
 
-    enum class piece_type : uint8_t
-    {
-        none,
-        rook,
-        knight,
-        bishop,
-        queen,
-        king,
-        pawn
-    };
-
-    struct [[nodiscard]] board_piece final
+    struct [[nodiscard]] drawable_piece final
     {
         uint8_t row : 3;
         uint8_t column : 3;
@@ -74,16 +65,9 @@ namespace pawn
         bool highlighted;
     };
 
-    enum class mesh_color : uint8_t
-    {
-        none,
-        white,
-        black
-    };
-
-    [[nodiscard]] constexpr board_piece to_board_peice(uint8_t const row,
+    [[nodiscard]] constexpr drawable_piece to_drawable_peice(uint8_t const row,
         uint8_t const column,
-        mesh_color const color,
+        piece_color const color,
         piece_type const type,
         bool const highlighted)
     {
@@ -125,7 +109,7 @@ namespace pawn
 
         void end_frame();
 
-        void add_piece(board_piece piece);
+        void add_piece(drawable_piece piece);
 
         void update(orthographic_camera const& camera);
 
@@ -184,7 +168,7 @@ namespace pawn
         glm::fvec3 light_color_{0.8f, 0.8f, 0.8f};
 
         uint8_t used_pieces_{};
-        std::array<board_piece, 64 + 1> draw_meshes_{};
+        std::array<drawable_piece, 64 + 1> draw_meshes_{};
     };
 } // namespace pawn
 

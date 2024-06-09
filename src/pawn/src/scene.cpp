@@ -465,7 +465,7 @@ void pawn::scene::attach_renderer(vkrndr::vulkan_device* device,
     }
 
     draw_meshes_[0] =
-        to_board_peice(0, 0, mesh_color::none, piece_type::none, false);
+        to_drawable_peice(0, 0, piece_color::none, piece_type::none, false);
 
     for (auto [index, texture] : model->textures | std::views::enumerate)
     {
@@ -519,7 +519,7 @@ void pawn::scene::begin_frame()
 
 void pawn::scene::end_frame() { }
 
-void pawn::scene::add_piece(board_piece piece)
+void pawn::scene::add_piece(drawable_piece piece)
 {
     draw_meshes_[used_pieces_++] = piece;
 }
@@ -567,7 +567,7 @@ void pawn::scene::update(orthographic_camera const& camera)
                 }
 
                 // Rotate black pieces toward center of board
-                if (draw_mesh.color == std::to_underlying(mesh_color::black))
+                if (draw_mesh.color == std::to_underlying(piece_color::black))
                 {
                     model_matrix = glm::rotate(model_matrix,
                         glm::radians(180.0f),
@@ -636,12 +636,12 @@ void pawn::scene::draw(VkCommandBuffer command_buffer, VkExtent2D extent)
         nullptr);
 
     auto const render_mesh = [this](int64_t index,
-                                 pawn::board_piece const& piece,
+                                 drawable_piece const& piece,
                                  VkCommandBuffer command_buffer)
     {
-        auto const generate_color = [](board_piece const& draw_mesh)
+        auto const generate_color = [](drawable_piece const& draw_mesh)
         {
-            return (draw_mesh.color == std::to_underlying(mesh_color::black))
+            return (draw_mesh.color == std::to_underlying(piece_color::black))
                 ? glm::fvec4{0.1f, 0.1f, 0.1f, 1.0f}
                 : glm::fvec4{0.9f, 0.9f, 0.9f, 1.0f};
         };

@@ -2,6 +2,7 @@ add_executable(pawn)
 
 target_sources(pawn
     PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/chess.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/chess_game.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/chess_game.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/pawn.m.cpp

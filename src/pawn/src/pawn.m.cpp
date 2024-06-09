@@ -75,24 +75,23 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
         while (!done)
         {
             SDL_Event event;
-            if (SDL_WaitEvent(&event) == 0)
+            while (SDL_PollEvent(&event) != 0)
             {
-                continue;
-            }
+                if (enable_validation_layers)
+                {
+                    ImGui_ImplSDL2_ProcessEvent(&event);
+                }
 
-            if (enable_validation_layers)
-            {
-                ImGui_ImplSDL2_ProcessEvent(&event);
-            }
-
-            if (is_quit_event(event, window.native_handle()))
-            {
-                done = true;
-                continue;
+                if (is_quit_event(event, window.native_handle()))
+                {
+                    done = true;
+                }
             }
 
             renderer.begin_frame();
             game.begin_frame();
+
+            game.update();
 
             renderer.draw(game.render_scene());
 

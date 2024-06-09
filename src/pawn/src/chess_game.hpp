@@ -1,10 +1,15 @@
 #ifndef PAWN_CHESS_GAME_INCLUDED
 #define PAWN_CHESS_GAME_INCLUDED
 
+#include <chess.hpp>
 #include <scene.hpp>
 #include <uci_engine.hpp>
 
+#include <array>
+#include <future>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace vkrndr
 {
@@ -15,6 +20,18 @@ namespace vkrndr
 
 namespace pawn
 {
+    struct [[nodiscard]] board_piece final
+    {
+        piece_color color{piece_color::none};
+        piece_type type{piece_type::none};
+        bool moved_from_starting_position{false};
+    };
+
+    struct [[nodiscard]] board_state final
+    {
+        std::array<board_piece, 64> tiles;
+    };
+
     class [[nodiscard]] chess_game final
     {
     public:
@@ -37,6 +54,8 @@ namespace pawn
 
         void begin_frame();
 
+        void update();
+
         void end_frame();
 
     public:
@@ -48,6 +67,9 @@ namespace pawn
         uci_engine engine_;
         orthographic_camera camera_;
         scene scene_;
+        board_state board_;
+        std::vector<std::string> moves_;
+        std::future<std::string> next_move_{};
     };
 } // namespace pawn
 
