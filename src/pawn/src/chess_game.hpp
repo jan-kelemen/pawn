@@ -69,7 +69,7 @@ namespace pawn
         scene scene_;
         board_state board_;
         std::vector<std::string> moves_;
-        std::future<std::string> next_move_{};
+        std::future<std::string> next_move_;
     };
 } // namespace pawn
 

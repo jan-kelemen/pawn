@@ -110,7 +110,7 @@ VkFormat vkrndr::vulkan_renderer::image_format() const
 
 uint32_t vkrndr::vulkan_renderer::image_count() const
 {
-    return vulkan_swap_chain::max_frames_in_flight;
+    return swap_chain_->image_count();
 }
 
 VkExtent2D vkrndr::vulkan_renderer::extent() const
