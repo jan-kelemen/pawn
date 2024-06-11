@@ -101,23 +101,61 @@ void pawn::chess_game::update()
     using namespace std::chrono_literals;
     if (!next_move_.valid())
     {
-        next_move_ = std::async(
-            [this]()
-            {
-                return engine_.next_move(fmt::format(
-                    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR {} KQkq - 0 1",
-                    moves_.size() % 2 ? 'b' : 'w'));
-            });
+        next_move_ = std::async([this]() { return engine_.next_move(moves_); });
     }
     else if (next_move_.wait_for(10ns) == std::future_status::ready)
     {
         std::string move{next_move_.get()};
+        auto const from{move.substr(0, 2)};
+        auto const to{move.substr(2, 2)};
         auto moved_piece{
-            std::exchange(board_.tiles[to_flat_index(move.substr(0, 2))],
-                board_piece{})};
+            std::exchange(board_.tiles[to_flat_index(from)], board_piece{})};
         moved_piece.moved_from_starting_position = true;
 
-        auto& new_tile{board_.tiles[to_flat_index(move.substr(2))]};
+        auto& new_tile{board_.tiles[to_flat_index(to)]};
+        if (move.size() == 5)
+        {
+            switch (move[4])
+            {
+            case 'r':
+                moved_piece.type = piece_type::rook;
+                break;
+            case 'n':
+                moved_piece.type = piece_type::knight;
+                break;
+            case 'b':
+                moved_piece.type = piece_type::bishop;
+                break;
+            case 'q':
+                moved_piece.type = piece_type::queen;
+            }
+        }
+        else if (moved_piece.type == piece_type::king)
+        {
+            for (auto row : {1, 8})
+            {
+                if (from == fmt::format("e{}", row) &&
+                    to == fmt::format("g{}", row))
+                {
+                    auto const rook_pos{to_flat_index(fmt::format("f{}", row))};
+
+                    board_.tiles[rook_pos] = std::exchange(
+                        board_.tiles[to_flat_index(fmt::format("h{}", row))],
+                        board_piece{});
+                    board_.tiles[rook_pos].moved_from_starting_position = true;
+                }
+                else if (from == fmt::format("e{}", row) &&
+                    to == fmt::format("c{}", row))
+                {
+                    auto const rook_pos{to_flat_index(fmt::format("d{}", row))};
+
+                    board_.tiles[rook_pos] = std::exchange(
+                        board_.tiles[to_flat_index(fmt::format("a{}", row))],
+                        board_piece{});
+                    board_.tiles[rook_pos].moved_from_starting_position = true;
+                }
+            }
+        }
         new_tile = moved_piece;
 
         moves_.push_back(move);

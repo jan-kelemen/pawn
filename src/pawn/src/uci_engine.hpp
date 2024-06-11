@@ -21,7 +21,7 @@ namespace pawn
         ~uci_engine();
 
     public:
-        [[nodiscard]] std::string next_move(std::string_view fenstring);
+        [[nodiscard]] std::string next_move(std::span<std::string const> moves);
 
         [[nodiscard]] std::span<std::string const> debug_output() const;
 

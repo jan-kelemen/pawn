@@ -10,7 +10,7 @@
 #include <boost/process/pipe.hpp>
 #include <boost/spirit/home/x3.hpp>
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 #include <chrono>
 #include <iostream>
@@ -76,18 +76,21 @@ public:
     }
 
 public:
-    [[nodiscard]] std::string next_move(std::string_view fenstring)
+    [[nodiscard]] std::string next_move(std::span<std::string const> moves)
     {
+        using namespace std::chrono_literals;
         using boost::spirit::x3::ascii::space;
 
-        send_command(fmt::format("position fen {}", fenstring));
+        send_command(
+            fmt::format("position startpos moves {}", fmt::join(moves, " ")));
+        auto const now{std::chrono::steady_clock::now()};
         send_command("go movetime 1000");
 
         std::string line;
         while (std::getline(output_, line))
         {
             boost::algorithm::trim(line);
-            if (line.empty())
+            if (line.empty() || line.starts_with("info"))
             {
                 continue;
             }
@@ -101,10 +104,12 @@ public:
                     space,
                     bestmove))
             {
+                std::this_thread::sleep_until(now + 1000ms);
                 return std::move(bestmove.move);
             }
         }
 
+        std::this_thread::sleep_until(now + 1000ms);
         return "";
     }
 
@@ -143,9 +148,9 @@ pawn::uci_engine::uci_engine(uci_engine&&) noexcept = default;
 
 pawn::uci_engine::~uci_engine() = default;
 
-std::string pawn::uci_engine::next_move(std::string_view fenstring)
+std::string pawn::uci_engine::next_move(std::span<std::string const> moves)
 {
-    return impl_->next_move(fenstring);
+    return impl_->next_move(moves);
 }
 
 std::span<std::string const> pawn::uci_engine::debug_output() const

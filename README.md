@@ -1,6 +1,14 @@
 # pawn [![GitHub Build status](https://github.com/jan-kelemen/pawn/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jan-kelemen/pawn/actions/workflows/ci.yml/badge.svg?branch=master)
 
-UCI protocol compatible GUI rendered with Vulkan API.
+UCI protocol "compatible" GUI rendered with Vulkan API.
+
+## How to run
+* Copy all of the assets from the `assets/` folder to the same directory where `pawn` executable is located.
+* Download a UCI compatible chess engine, like [Stockfish](https://stockfishchess.org/download/) compatible with your device
+* Run the GUI
+```
+pawn.exe "stockfish-windows-x86-64-bmi2\stockfish\stockfish-windows-x86-64-bmi2.exe"
+```
 
 ## Building
 Necessary build tools are:
