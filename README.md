@@ -1,6 +1,6 @@
 # pawn [![GitHub Build status](https://github.com/jan-kelemen/pawn/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jan-kelemen/pawn/actions/workflows/ci.yml/badge.svg?branch=master)
 
-UCI protocol "compatible" GUI rendered with Vulkan API.
+UCI protocol "compatible" GUI rendered with Vulkan API. Blog post: [Chess engine visualization](https://jan-kelemen.github.io/2024/06/13/chess-engine-visualization.html)
 
 ## How to run
 * Copy all of the assets from the `assets/` folder to the same directory where `pawn` executable is located.
